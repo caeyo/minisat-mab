@@ -108,7 +108,9 @@ int main(int argc, char** argv)
         // Change to signal-handlers that will only notify the solver and allow it to terminate
         // voluntarily:
         sigTerm(SIGINT_interrupt);
-       
+
+        // First tries to simplify out satisfied clauses, fails if current constraints are already satisfiable (!ok) or
+        // if propagate() returns undefined
         if (!S.simplify()){
             if (res != NULL) fprintf(res, "UNSAT\n"), fclose(res);
             if (S.verbosity > 0){
@@ -119,8 +121,10 @@ int main(int argc, char** argv)
             printf("UNSATISFIABLE\n");
             exit(20);
         }
-        
+
+        // Dummy used here for no assumptions
         vec<Lit> dummy;
+        // Begins solving -> solve_()
         lbool ret = S.solveLimited(dummy);
         if (S.verbosity > 0){
             S.printStats();
