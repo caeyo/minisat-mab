@@ -26,7 +26,6 @@
 
 #pragma once
 
-#include "minisat/core/Solver.h"
 #include "minisat/core/SolverTypes.h"
 
 using namespace Minisat;
