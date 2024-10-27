@@ -256,6 +256,7 @@ Lit Solver::pickBranchLit()
         if (value(next) == l_Undef && decision[next])
             rnd_decisions++; }
 
+    // Activity in a min heap by priority
     // Activity based decision:
     while (next == var_Undef || value(next) != l_Undef || !decision[next])
         if (order_heap.empty()){
@@ -279,19 +280,19 @@ Lit Solver::pickBranchLit()
 /*_________________________________________________________________________________________________
 |
 |  analyze : (confl : Clause*) (out_learnt : vec<Lit>&) (out_btlevel : int&)  ->  [void]
-|  
+|
 |  Description:
 |    Analyze conflict and produce a reason clause.
-|  
+|
 |    Pre-conditions:
 |      * 'out_learnt' is assumed to be cleared.
 |      * Current decision level must be greater than root level.
-|  
+|
 |    Post-conditions:
 |      * 'out_learnt[0]' is the asserting literal at level 'out_btlevel'.
-|      * If out_learnt.size() > 1 then 'out_learnt[1]' has the greatest decision level of the 
+|      * If out_learnt.size() > 1 then 'out_learnt[1]' has the greatest decision level of the
 |        rest of literals. There may be others from the same level though.
-|  
+|
 |________________________________________________________________________________________________@*/
 void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel)
 {
@@ -303,6 +304,7 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel)
     out_learnt.push();      // (leave room for the asserting literal)
     int index   = trail.size() - 1;
 
+    // This will bump the activities of all clauses and literals that are part of implication
     do{
         assert(confl != CRef_Undef); // (otherwise should be UIP)
         Clause& c = ca[confl];
@@ -313,6 +315,7 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel)
         for (int j = (p == lit_Undef) ? 0 : 1; j < c.size(); j++){
             Lit q = c[j];
 
+            // For each literal in the conflict clause, bump its activity if it hasn't been seen
             if (!seen[var(q)] && level(var(q)) > 0){
                 varBumpActivity(var(q));
                 seen[var(q)] = 1;
@@ -322,7 +325,7 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel)
                     out_learnt.push(q);
             }
         }
-        
+
         // Select next clause to look at:
         while (!seen[var(trail[index--])]);
         p     = trail[index+1];
@@ -341,7 +344,7 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel)
         for (i = j = 1; i < out_learnt.size(); i++)
             if (reason(var(out_learnt[i])) == CRef_Undef || !litRedundant(out_learnt[i]))
                 out_learnt[j++] = out_learnt[i];
-        
+
     }else if (ccmin_mode == 1){
         for (i = j = 1; i < out_learnt.size(); i++){
             Var x = var(out_learnt[i]);
@@ -399,11 +402,11 @@ bool Solver::litRedundant(Lit p)
         if (i < (uint32_t)c->size()){
             // Checking 'p'-parents 'l':
             Lit l = (*c)[i];
-            
+
             // Variable at level 0 or previously removable:
             if (level(var(l)) == 0 || seen[var(l)] == seen_source || seen[var(l)] == seen_removable){
                 continue; }
-            
+
             // Check variable can not be removed for some local reason:
             if (reason(var(l)) == CRef_Undef || seen[var(l)] == seen_failed){
                 stack.push(ShrinkStackElem(0, p));
@@ -412,7 +415,7 @@ bool Solver::litRedundant(Lit p)
                         seen[var(stack[i].l)] = seen_failed;
                         analyze_toclear.push(stack[i].l);
                     }
-                    
+
                 return false;
             }
 
@@ -430,7 +433,7 @@ bool Solver::litRedundant(Lit p)
 
             // Terminate with success if stack is empty:
             if (stack.size() == 0) break;
-            
+
             // Continue with top element on stack:
             i  = stack.last().i;
             p  = stack.last().l;
@@ -447,7 +450,7 @@ bool Solver::litRedundant(Lit p)
 /*_________________________________________________________________________________________________
 |
 |  analyzeFinal : (p : Lit)  ->  [void]
-|  
+|
 |  Description:
 |    Specialized analysis procedure to express the final conflict in terms of assumptions.
 |    Calculates the (possibly empty) set of assumptions that led to the assignment of 'p', and
@@ -495,25 +498,32 @@ void Solver::uncheckedEnqueue(Lit p, CRef from)
 /*_________________________________________________________________________________________________
 |
 |  propagate : [void]  ->  [Clause*]
-|  
+|
 |  Description:
 |    Propagates all enqueued facts. If a conflict arises, the conflicting clause is returned,
 |    otherwise CRef_Undef.
-|  
+|
 |    Post-conditions:
 |      * the propagation queue is empty, even if there was a conflict.
 |________________________________________________________________________________________________@*/
 CRef Solver::propagate()
 {
+    // A lot of time (~80%) is spent in here according to paper
+
     CRef    confl     = CRef_Undef;
     int     num_props = 0;
 
+    // Uses a queue called propagation queue as a set of literals to be propagated. Goes until queue is empty
     while (qhead < trail.size()){
         Lit            p   = trail[qhead++];     // 'p' is enqueued fact to propagate.
         vec<Watcher>&  ws  = watches.lookup(p);
         Watcher        *i, *j, *end;
         num_props++;
+        // Watcher vec contains list of constraints that may be affected by the assignment (i.e. where the lit is
+        // located)
 
+        // Start with the first literal in the watcher list for the fact currently being propagated, check each
+        // literal in the watcher list,
         for (i = j = (Watcher*)ws, end = i + ws.size();  i != end;){
             // Try to avoid inspecting the clause:
             Lit blocker = i->blocker;
@@ -546,7 +556,7 @@ CRef Solver::propagate()
             *j++ = w;
             if (value(first) == l_False){
                 confl = cr;
-                qhead = trail.size();
+                qhead = trail.size(); // This will terminate
                 // Copy the remaining watches:
                 while (i < end)
                     *j++ = *i++;
@@ -567,16 +577,16 @@ CRef Solver::propagate()
 /*_________________________________________________________________________________________________
 |
 |  reduceDB : ()  ->  [void]
-|  
+|
 |  Description:
 |    Remove half of the learnt clauses, minus the clauses locked by the current assignment. Locked
 |    clauses are clauses that are reason to some assignment. Binary clauses are never removed.
 |________________________________________________________________________________________________@*/
-struct reduceDB_lt { 
+struct reduceDB_lt {
     ClauseAllocator& ca;
     reduceDB_lt(ClauseAllocator& ca_) : ca(ca_) {}
-    bool operator () (CRef x, CRef y) { 
-        return ca[x].size() > 2 && (ca[y].size() == 2 || ca[x].activity() < ca[y].activity()); } 
+    bool operator () (CRef x, CRef y) {
+        return ca[x].size() > 2 && (ca[y].size() == 2 || ca[x].activity() < ca[y].activity()); }
 };
 void Solver::reduceDB()
 {
@@ -633,7 +643,7 @@ void Solver::rebuildOrderHeap()
 /*_________________________________________________________________________________________________
 |
 |  simplify : [void]  ->  [bool]
-|  
+|
 |  Description:
 |    Simplify the clause database according to the current top-level assigment. Currently, the only
 |    thing done here is the removal of satisfied clauses, but more things can be put here.
@@ -689,11 +699,11 @@ bool Solver::simplify()
 /*_________________________________________________________________________________________________
 |
 |  search : (nof_conflicts : int) (params : const SearchParams&)  ->  [lbool]
-|  
+|
 |  Description:
-|    Search for a model the specified number of conflicts. 
+|    Search for a model the specified number of conflicts.
 |    NOTE! Use negative value for 'nof_conflicts' indicate infinity.
-|  
+|
 |  Output:
 |    'l_True' if a partial assigment that is consistent with respect to the clauseset is found. If
 |    all variables are decision variables, this means that the clause set is satisfiable. 'l_False'
@@ -708,6 +718,10 @@ lbool Solver::search(int nof_conflicts)
     starts++;
 
     for (;;){
+        // Start by propagating unit information on the clauses. This will continually assign variables and propagate
+        // any unit information that can be inferred by the assignment of those variables until either a conflict is
+        // found (confl != CRef_Undef), or the queue is empty (opposite, no conflict found).
+        // Doing the BCP part until conflict or nothing
         CRef confl = propagate();
         if (confl != CRef_Undef){
             // CONFLICT
@@ -715,12 +729,16 @@ lbool Solver::search(int nof_conflicts)
             if (decisionLevel() == 0) return l_False;
 
             learnt_clause.clear();
+            // Determine a reason for the conflict/implication. Will put all the literals involved in the conflict
+            // into the learnt_clause vec. Doing the clause learning part
             analyze(confl, learnt_clause, backtrack_level);
+            // Cancel up until where we need to backtrack to, determined by analyze
             cancelUntil(backtrack_level);
 
+            // Learned clause is a literal
             if (learnt_clause.size() == 1){
                 uncheckedEnqueue(learnt_clause[0]);
-            }else{
+            }else{ // Add clause to learned
                 CRef cr = ca.alloc(learnt_clause, true);
                 learnts.push(cr);
                 attachClause(cr);
@@ -728,6 +746,7 @@ lbool Solver::search(int nof_conflicts)
                 uncheckedEnqueue(learnt_clause[0], cr);
             }
 
+            // We've added a clause, so here we apply the decaying constant for next decision
             varDecayActivity();
             claDecayActivity();
 
@@ -737,28 +756,32 @@ lbool Solver::search(int nof_conflicts)
                 max_learnts             *= learntsize_inc;
 
                 if (verbosity >= 1)
-                    printf("| %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% |\n", 
-                           (int)conflicts, 
-                           (int)dec_vars - (trail_lim.size() == 0 ? trail.size() : trail_lim[0]), nClauses(), (int)clauses_literals, 
+                    printf("| %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% |\n",
+                           (int)conflicts,
+                           (int)dec_vars - (trail_lim.size() == 0 ? trail.size() : trail_lim[0]), nClauses(), (int)clauses_literals,
                            (int)max_learnts, nLearnts(), (double)learnts_literals/nLearnts(), progressEstimate()*100);
             }
-
+            // If a conflict, then propagate on the same variable but with newly learned info (skip below branch)
         }else{
             // NO CONFLICT
             if ((nof_conflicts >= 0 && conflictC >= nof_conflicts) || !withinBudget()){
                 // Reached bound on number of conflicts:
+                // Fail this search and restart
                 progress_estimate = progressEstimate();
                 cancelUntil(0);
                 return l_Undef; }
 
             // Simplify the set of problem clauses:
+            // If after simplifying we're at decision level 0, then unsat
             if (decisionLevel() == 0 && !simplify())
                 return l_False;
 
+            // Too many learned clauses, so reduce by half (excl. clauses that are part of an implication/reason)
             if (learnts.size()-nAssigns() >= max_learnts)
                 // Reduce the set of learnt clauses:
                 reduceDB();
 
+            // Handle inputted assumptions
             Lit next = lit_Undef;
             while (decisionLevel() < assumptions.size()){
                 // Perform user provided assumption:
@@ -775,6 +798,7 @@ lbool Solver::search(int nof_conflicts)
                 }
             }
 
+            // Make a new decision, now that conflicts are handled
             if (next == lit_Undef){
                 // New variable decision:
                 decisions++;
@@ -840,10 +864,13 @@ lbool Solver::solve_()
 {
     model.clear();
     conflict.clear();
+    // Solver in unsatisfiable state already
     if (!ok) return l_False;
 
     solves++;
 
+    // This determines the number of learned clauses we can keep (because it throws them out based on a limit if they
+    // aren't relevant to current variable assignment)
     max_learnts = nClauses() * learntsize_factor;
     if (max_learnts < min_learnts_lim)
         max_learnts = min_learnts_lim;
@@ -862,6 +889,8 @@ lbool Solver::solve_()
     // Search:
     int curr_restarts = 0;
     while (status == l_Undef){
+        // Couple different determinants for restarting, passed to search() - the solver will continually restart
+        // until the budget of restarts hit
         double rest_base = luby_restart ? luby(restart_inc, curr_restarts) : pow(restart_inc, curr_restarts);
         status = search(rest_base * restart_first);
         if (!withinBudget()) break;
