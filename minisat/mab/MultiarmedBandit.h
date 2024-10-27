@@ -15,6 +15,7 @@
  * 1. Pure UCB, where we only track avg rewards for vars we actually pick
  * 2. Adjusted, where we track avg activities over time by taking in the activity vector,
  *    updating means for all variables, then choosing arm
+ *      If doing this, the vars might be better off starting with a random initial activity and all choiceCounts = 1
  *
  * We want avgRewards to mirror activity VMap,
  *
