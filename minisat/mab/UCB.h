@@ -10,11 +10,11 @@ public:
     explicit UCB(const int nVars) : MultiarmedBandit(nVars) {
     }
 
-    Var select(const VMap<char> &varValidity) override {
+    Var select(const VMap<char> &varValidity, Solver *s) override {
         Var max = var_Undef;
         double maxUcb = -1.0;
         for (Var v = 0; v < nVars; ++v) {
-            if (!varValidity[v]) {
+            if (!varValidity[v] || s->value(v) != l_Undef || s-) {
                 continue;
             }
             // Classic UCB will pull all arms once. Do we want to? We might have info on other arms already
@@ -29,6 +29,7 @@ public:
             }
         }
         ++totalChoiceCount;
+        currVar = max;
         return max;
     }
 
