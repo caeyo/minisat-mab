@@ -31,6 +31,9 @@ endif()
 #--------------------------------------------------------------------------------------------------
 # Dependencies:
 
+
+find_package(Boost 1.70.0 REQUIRED COMPONENTS random)
+include_directories(${Boost_INCLUDE_DIR})
 find_package(ZLIB)
 include_directories(${ZLIB_INCLUDE_DIR})
 include_directories(${minisat_SOURCE_DIR})
@@ -54,7 +57,9 @@ add_library(minisat-lib-shared SHARED ${MINISAT_LIB_SOURCES}
         minisat/mab/ThompsonSampling.h)
 
 target_link_libraries(minisat-lib-shared ${ZLIB_LIBRARY})
+target_link_libraries(minisat-lib-shared ${Boost_LIBRARY})
 target_link_libraries(minisat-lib-static ${ZLIB_LIBRARY})
+target_link_libraries(minisat-lib-static ${Boost_LIBRARY})
 
 add_executable(minisat_core minisat/core/Main.cc)
 add_executable(minisat_simp minisat/simp/Main.cc)

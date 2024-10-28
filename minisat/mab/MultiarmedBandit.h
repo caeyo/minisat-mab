@@ -12,16 +12,20 @@
  * Also need to check if var is valid, i.e. decision[v] true
  *
  * Two approaches:
- * 1. Pure UCB, where we only track avg rewards for vars we actually pick
+ * 1. Pure UCB, where we only track avg rewards for vars we actually pick. What we do rn
  * 2. Adjusted, where we track avg activities over time by taking in the activity vector,
  *    updating means for all variables, then choosing arm
  *      If doing this, the vars might be better off starting with a random initial activity and all choiceCounts = 1
+ *      Can also optimise with a way to track which variables actually got updated
+ *
+ * Really need to optimise this to use a max heap or something. Some
  *
  * We want avgRewards to mirror activity VMap,
  *
  * Doesn't appear like nVars decreases, nor does size of activity VMap decrease
  *
  * TODO: handle when activities is rescaled?
+ *
  */
 
 #pragma once
@@ -43,7 +47,7 @@ public:
         avgReward.reserve(nVars - 1, 0.0);
     }
 
-    virtual Var select(const VMap<char>& varValidity, Solver *s) = 0;
+    virtual Var select(const VMap<char>& varValidity, Solver *s, const VMap<double> &rewards) = 0;
     virtual void updateCurrVar(const VMap<double> &rewards) = 0;
 
     virtual ~MultiarmedBandit() = default;
