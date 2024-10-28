@@ -14,7 +14,7 @@ public:
         Var max = var_Undef;
         double maxUcb = -1.0;
         for (Var v = 0; v < nVars; ++v) {
-            if (!varValidity[v] || s->value(v) != l_Undef || s-) {
+            if (!varValidity[v] || s->value(v) != l_Undef) {
                 continue;
             }
             // Classic UCB will pull all arms once. Do we want to? We might have info on other arms already
