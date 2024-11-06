@@ -51,7 +51,9 @@ set(MINISAT_LIB_SOURCES
 
 add_library(minisat-lib-static STATIC ${MINISAT_LIB_SOURCES})
 add_library(minisat-lib-shared SHARED ${MINISAT_LIB_SOURCES}
-        minisat/mab/ThompsonSampling.h)
+        minisat/mab/MultiarmedBandit.h
+        minisat/mab/UCB.cc
+        minisat/mab/UCB.h)
 
 target_link_libraries(minisat-lib-shared ${ZLIB_LIBRARY})
 target_link_libraries(minisat-lib-static ${ZLIB_LIBRARY})
