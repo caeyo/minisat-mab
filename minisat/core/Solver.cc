@@ -321,6 +321,29 @@ Lit Solver::pickBranchLit()
 |________________________________________________________________________________________________@*/
 void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel)
 {
+/*
+ * Need to figure out:
+ * 1. WHen the conflict is sufficiently reduced to final form, and whether injecting in varBumpActivity for arm
+ *      reward increase is appropriate (they are directly affecting heap with it, but I want to double check)
+ * 2. How to inc arm pull count for every variable under assignment that led to this conflict being generated
+ *    (where in this method does every variable get checked, track with debugger for a good example from that
+ *    website). the seen arr might be it? idk if its empty at beginning of this
+ *    actually might be analyze_toclear. see when out_learnts gets copied over, might be out_learnts at that point
+ *
+ * out_learnt is the conflict clause generated here.
+ *
+ *
+ * Note for Wenxi: activity heuristic is a little different to what was described in orig paper, and in Chaff. See
+ * Minisat paper 1.13 - activity bumped for variables in any clause involved in conflict, not just the final
+ * generated conflict clause. Also decay by 5% after every conflict, not periodically.
+ *
+ * So do we want to bump our rewards for all of those variables that get activity increased, or just the ones involved?
+ *      Test both
+ *
+ * For increasing arms under assignment:
+ *      Does it work to just inc pull count when either making a decision or in BCP? Like if an arm gets any assignment
+ *      at any point then it's being pulled right
+*/
     int pathC = 0;
     Lit p     = lit_Undef;
 
@@ -390,6 +413,9 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel)
     max_literals += out_learnt.size();
     out_learnt.shrink(i - j);
     tot_literals += out_learnt.size();
+
+    // at this point its minimised. do we want this one to be reward determiner or prev? try both and compare
+    // are we incrementing by 1 for each var or saying "at this point add its curr activity to its mean reward"
 
     // Find correct backtrack level:
     //

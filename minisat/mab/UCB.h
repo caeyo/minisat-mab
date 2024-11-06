@@ -48,3 +48,13 @@ public:
         avgReward[currVar] = ((n - 1) * avgReward[currVar] + rewards[currVar]) / n;
     }
 };
+
+/* Improvements to calculating this ucb value:
+ *      If you track which variables were just pulled before this select, then the bonus of sqrt(2 *...) only needs to
+ *      be specially calculated for those. Every other one will share the same value for this bc varChoiceCount remains
+ *      same and totalChoiceCount is const locally
+ *
+ *
+*/
+
+// I am worried about reduceDB and restarts but we'll see - do we carry over what we learned?
