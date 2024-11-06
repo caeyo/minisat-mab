@@ -147,9 +147,7 @@ public:
     int       learntsize_adjust_start_confl;
     double    learntsize_adjust_inc;
 
-    bool mab_on;
     bool ucb;
-    bool ts;
 
     // Statistics: (read-only member variable)
     //

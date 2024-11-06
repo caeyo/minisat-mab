@@ -26,7 +26,6 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "minisat/core/Solver.h"
 
 #include "minisat/mab/MultiarmedBandit.h"
-#include "minisat/mab/ThompsonSampling.h"
 #include "minisat/mab/UCB.h"
 
 using namespace Minisat;
@@ -50,9 +49,7 @@ static DoubleOption  opt_restart_inc       (_cat, "rinc",        "Restart interv
 static DoubleOption  opt_garbage_frac      (_cat, "gc-frac",     "The fraction of wasted memory allowed before a garbage collection is triggered",  0.20, DoubleRange(0, false, HUGE_VAL, false));
 static IntOption     opt_min_learnts_lim   (_cat, "min-learnts", "Minimum learnt clause limit",  0, IntRange(0, INT32_MAX));
 
-static BoolOption    opt_mab               (_cat, "mab",         "Use a MAB", false);
 static BoolOption    opt_ucb               (_cat, "ucb",         "Use UCB", false);
-static BoolOption    opt_ts               (_cat, "ts",         "Use TS", false);
 
 
 //=================================================================================================
@@ -77,9 +74,7 @@ Solver::Solver() :
   , min_learnts_lim  (opt_min_learnts_lim)
   , restart_first    (opt_restart_first)
   , restart_inc      (opt_restart_inc)
-  , mab_on              (opt_mab)
   , ucb              (opt_ucb)
-  , ts               (opt_ts)
 
     // Parameters (the rest):
     //
@@ -263,16 +258,12 @@ Lit Solver::pickBranchLit()
 {
     Var next = var_Undef;
 
-    if (mab_on) {
+    if (ucb) {
         if (mab == nullptr) {
-            if (ucb) {
-                mab = new UCB(nVars());
-            } else if (ts) {
-                mab = new ThompsonSampling(nVars());
-            }
+            mab = new UCB(nVars());
         }
         mab->updateCurrVar(activity);
-        next = mab->select(decision, this, activity);
+        next = mab->select(decision, this);
     } else {
         // Random decision:
         if (drand(random_seed) < random_var_freq && !order_heap.empty()){
