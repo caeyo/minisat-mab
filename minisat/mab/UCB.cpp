@@ -11,8 +11,7 @@ Var UCB::select(const VMap<char> &varValidity) {
         }
         // Classic UCB will pull all arms once. Do we want to? We might have info on other arms already
         if (varChoiceCount[v] == 0) {
-            max = v;
-            break;
+            return v;
         }
         const double ucb = avgReward[v] + sqrt(2 * log(totalChoiceCount) / varChoiceCount[v]);
         if (ucb > maxUcb) {
@@ -20,7 +19,6 @@ Var UCB::select(const VMap<char> &varValidity) {
             maxUcb = ucb;
         }
     }
-    ++totalChoiceCount;
     return max;
 }
 
