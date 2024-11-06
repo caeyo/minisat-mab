@@ -28,11 +28,6 @@
 
 #include "minisat/core/SolverTypes.h"
 
-namespace Minisat {
-    // forward declare solver as temp hackfix
-    class Solver;
-}
-
 using namespace Minisat;
 
 class MultiarmedBandit {
@@ -43,7 +38,7 @@ public:
         avgReward.reserve(nVars - 1, 0.0);
     }
 
-    virtual Var select(const VMap<char>& varValidity, Solver *s) = 0;
+    virtual Var select(const VMap<char>& varValidity) = 0;
     virtual void updateCurrVar(const VMap<double> &rewards) = 0;
 
     virtual ~MultiarmedBandit() = default;

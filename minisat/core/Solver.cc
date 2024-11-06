@@ -263,7 +263,7 @@ Lit Solver::pickBranchLit()
             mab = new UCB(nVars());
         }
         mab->updateCurrVar(activity);
-        next = mab->select(decision, this);
+        next = mab->select(decision);
     } else {
         // Random decision:
         if (drand(random_seed) < random_var_freq && !order_heap.empty()){
