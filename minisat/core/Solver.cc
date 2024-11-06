@@ -25,10 +25,6 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "minisat/utils/System.h"
 #include "minisat/core/Solver.h"
 
-#include "minisat/mab/MultiarmedBandit.h"
-#include "minisat/mab/ThompsonSampling.h"
-#include "minisat/mab/UCB.h"
-
 using namespace Minisat;
 
 //=================================================================================================
@@ -50,9 +46,7 @@ static DoubleOption  opt_restart_inc       (_cat, "rinc",        "Restart interv
 static DoubleOption  opt_garbage_frac      (_cat, "gc-frac",     "The fraction of wasted memory allowed before a garbage collection is triggered",  0.20, DoubleRange(0, false, HUGE_VAL, false));
 static IntOption     opt_min_learnts_lim   (_cat, "min-learnts", "Minimum learnt clause limit",  0, IntRange(0, INT32_MAX));
 
-static BoolOption    opt_mab               (_cat, "mab",         "Use a MAB", false);
 static BoolOption    opt_ucb               (_cat, "ucb",         "Use UCB", false);
-static BoolOption    opt_ts               (_cat, "ts",         "Use TS", false);
 
 
 //=================================================================================================
@@ -72,14 +66,12 @@ Solver::Solver() :
   , ccmin_mode       (opt_ccmin_mode)
   , phase_saving     (opt_phase_saving)
   , rnd_pol          (false)
-  , rnd_init_act     (opt_rnd_init_act)
+  , rnd_init_act     (opt_rnd_init_act )//|| opt_ucb) //TODO: should we be doing this?
   , garbage_frac     (opt_garbage_frac)
   , min_learnts_lim  (opt_min_learnts_lim)
   , restart_first    (opt_restart_first)
   , restart_inc      (opt_restart_inc)
-  , mab_on              (opt_mab)
-  , ucb              (opt_ucb)
-  , ts               (opt_ts)
+  , ucb_on              (opt_ucb)
 
     // Parameters (the rest):
     //
@@ -113,7 +105,8 @@ Solver::Solver() :
   , propagation_budget (-1)
   , asynch_interrupt   (false)
 
-  , mab(nullptr)
+  , totalAssignsCount(0)
+  , num_pulls_at_zero(0)
 {}
 
 
@@ -141,8 +134,17 @@ Var Solver::newVar(lbool upol, bool dvar)
     watches  .init(mkLit(v, false));
     watches  .init(mkLit(v, true ));
     assigns  .insert(v, l_Undef);
+
+    // TODO: does this need to be 1 or can it be 0?
+    assignsCount.insert(v, 0);
+    // assignsCount.insert(v, 1);
+    // ++totalAssignsCount;
+
     vardata  .insert(v, mkVarData(CRef_Undef, 0));
     activity .insert(v, rnd_init_act ? drand(random_seed) * 0.00001 : 0);
+
+    meanActivityUCB.insert(v, activity[v]);
+
     seen     .insert(v, 0);
     polarity .insert(v, true);
     user_pol .insert(v, upol);
@@ -263,16 +265,23 @@ Lit Solver::pickBranchLit()
 {
     Var next = var_Undef;
 
-    if (mab_on) {
-        if (mab == nullptr) {
-            if (ucb) {
-                mab = new UCB(nVars());
-            } else if (ts) {
-                mab = new ThompsonSampling(nVars());
+    if (ucb_on) {
+        double maxUcb = -1.0;
+        for (Var v = 0; v < nVars(); ++v) {
+            if (!decision[v] || value(v) != l_Undef) {
+                continue;
+            }
+            if (assignsCount[v] == 0) { //TODO: do we need to pull all arms once? This pulls a few but not all. We could try random if find none
+                next = v;
+                ++num_pulls_at_zero;
+                break;
+            }
+            const double ucb = meanActivityUCB[v] + sqrt(2 * log(totalAssignsCount) / assignsCount[v]);
+            if (ucb > maxUcb) {
+                maxUcb = ucb;
+                next = v;
             }
         }
-        mab->updateCurrVar(activity);
-        next = mab->select(decision, this, activity);
     } else {
         // Random decision:
         if (drand(random_seed) < random_var_freq && !order_heap.empty()){
@@ -343,6 +352,10 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel)
  * For increasing arms under assignment:
  *      Does it work to just inc pull count when either making a decision or in BCP? Like if an arm gets any assignment
  *      at any point then it's being pulled right
+ *
+ *      Create a similar array to assigns, and then every time you write a new assignment to assigns you increase count
+ *      for that var by 1. Do this in uncheckedEnqueue and it should work, because both propagate() and search() will
+ *      use this method when they either BCP on a variable or make a new decision
 */
     int pathC = 0;
     Lit p     = lit_Undef;
@@ -366,6 +379,13 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel)
             // For each literal in the conflict clause, bump its activity if it hasn't been seen
             if (!seen[var(q)] && level(var(q)) > 0){
                 varBumpActivity(var(q));
+
+                // UCB
+                //         const int n = ++varChoiceCount[currVar];
+                //         avgReward[currVar] = ((n - 1) * avgReward[currVar] + rewards[currVar]) / n;
+                // Double check that this - 1 works, i.e. is it always only +1 with how you're currently inc'ing assignsCount
+                meanActivityUCB[var(q)] = ((assignsCount[var(q)] - 1) * meanActivityUCB[var(q)] + activity[var(q)]) / assignsCount[var(q)];
+
                 seen[var(q)] = 1;
                 if (level(var(q)) >= decisionLevel())
                     pathC++;
@@ -541,6 +561,8 @@ void Solver::uncheckedEnqueue(Lit p, CRef from)
 {
     assert(value(p) == l_Undef);
     assigns[var(p)] = lbool(!sign(p));
+    ++assignsCount[var(p)];
+    ++totalAssignsCount;
     vardata[var(p)] = mkVarData(from, decisionLevel());
     trail.push_(p);
 }
@@ -1079,6 +1101,7 @@ void Solver::printStats() const
     printf("conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", tot_literals, (max_literals - tot_literals)*100 / (double)max_literals);
     if (mem_used != 0) printf("Memory used           : %.2f MB\n", mem_used);
     printf("CPU time              : %g s\n", cpu_time);
+    printf("Num of pulls at 0     : %"PRIu64" \n", num_pulls_at_zero);
 }
 
 

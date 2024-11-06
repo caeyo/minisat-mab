@@ -28,8 +28,6 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "minisat/utils/Options.h"
 #include "minisat/core/SolverTypes.h"
 
-#include "minisat/mab/MultiarmedBandit.h"
-
 namespace Minisat {
 
 //=================================================================================================
@@ -147,14 +145,13 @@ public:
     int       learntsize_adjust_start_confl;
     double    learntsize_adjust_inc;
 
-    bool mab_on;
-    bool ucb;
-    bool ts;
+    bool ucb_on;
 
     // Statistics: (read-only member variable)
     //
     uint64_t solves, starts, decisions, rnd_decisions, propagations, conflicts;
     uint64_t dec_vars, num_clauses, num_learnts, clauses_literals, learnts_literals, max_literals, tot_literals;
+    uint64_t num_pulls_at_zero;
 
 protected:
 
@@ -241,7 +238,9 @@ protected:
     int64_t             propagation_budget; // -1 means no budget.
     bool                asynch_interrupt;
 
-    MultiarmedBandit *mab;
+    VMap<int> assignsCount;
+    int totalAssignsCount;
+    VMap<double> meanActivityUCB;
 
     // Main internal methods:
     //
