@@ -25,9 +25,6 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "minisat/utils/System.h"
 #include "minisat/core/Solver.h"
 
-#include "minisat/mab/MultiarmedBandit.h"
-#include "minisat/mab/UCB.h"
-
 using namespace Minisat;
 
 //=================================================================================================
@@ -48,8 +45,6 @@ static IntOption     opt_restart_first     (_cat, "rfirst",      "The base resta
 static DoubleOption  opt_restart_inc       (_cat, "rinc",        "Restart interval increase factor", 2, DoubleRange(1, false, HUGE_VAL, false));
 static DoubleOption  opt_garbage_frac      (_cat, "gc-frac",     "The fraction of wasted memory allowed before a garbage collection is triggered",  0.20, DoubleRange(0, false, HUGE_VAL, false));
 static IntOption     opt_min_learnts_lim   (_cat, "min-learnts", "Minimum learnt clause limit",  0, IntRange(0, INT32_MAX));
-
-static BoolOption    opt_ucb               (_cat, "ucb",         "Use UCB", false);
 
 
 //=================================================================================================
@@ -74,7 +69,6 @@ Solver::Solver() :
   , min_learnts_lim  (opt_min_learnts_lim)
   , restart_first    (opt_restart_first)
   , restart_inc      (opt_restart_inc)
-  , ucb              (opt_ucb)
 
     // Parameters (the rest):
     //
@@ -107,8 +101,6 @@ Solver::Solver() :
   , conflict_budget    (-1)
   , propagation_budget (-1)
   , asynch_interrupt   (false)
-
-  , mab(nullptr)
 {}
 
 
@@ -258,28 +250,20 @@ Lit Solver::pickBranchLit()
 {
     Var next = var_Undef;
 
-    if (ucb) {
-        if (mab == nullptr) {
-            mab = new UCB(nVars());
-        }
-        mab->updateCurrVar(activity);
-        next = mab->select(decision);
-    } else {
-        // Random decision:
-        if (drand(random_seed) < random_var_freq && !order_heap.empty()){
-            next = order_heap[irand(random_seed,order_heap.size())];
-            if (value(next) == l_Undef && decision[next])
-                rnd_decisions++; }
+    // Random decision:
+    if (drand(random_seed) < random_var_freq && !order_heap.empty()){
+        next = order_heap[irand(random_seed,order_heap.size())];
+        if (value(next) == l_Undef && decision[next])
+            rnd_decisions++; }
 
-        // Activity in a min heap by priority
-        // Activity based decision:
-        while (next == var_Undef || value(next) != l_Undef || !decision[next])
-            if (order_heap.empty()){
-                next = var_Undef;
-                break;
-            }else
-                next = order_heap.removeMin();
-    }
+    // Activity in a min heap by priority
+    // Activity based decision:
+    while (next == var_Undef || value(next) != l_Undef || !decision[next])
+        if (order_heap.empty()){
+            next = var_Undef;
+            break;
+        }else
+            next = order_heap.removeMin();
 
     // Choose polarity based on different polarity modes (global or per-variable):
     if (next == var_Undef)
