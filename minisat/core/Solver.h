@@ -151,7 +151,6 @@ public:
     //
     uint64_t solves, starts, decisions, rnd_decisions, propagations, conflicts;
     uint64_t dec_vars, num_clauses, num_learnts, clauses_literals, learnts_literals, max_literals, tot_literals;
-    uint64_t num_pulls_at_zero;
 
 protected:
 
@@ -239,8 +238,7 @@ protected:
     bool                asynch_interrupt;
 
     VMap<int> assignsCount;
-    int totalAssignsCount;
-    VMap<double> meanActivityUCB;
+    double ucbHyperParam;
 
     // Main internal methods:
     //
@@ -315,6 +313,8 @@ inline void Solver::insertVarOrder(Var x) {
 inline void Solver::varDecayActivity() { var_inc *= (1 / var_decay); }
 inline void Solver::varBumpActivity(Var v) { varBumpActivity(v, var_inc); }
 inline void Solver::varBumpActivity(Var v, double inc) {
+    if (ucb_on)
+        inc += sqrt(ucbHyperParam / assignsCount[v]);
     if ( (activity[v] += inc) > 1e100 ) {
         // Rescale:
         for (int i = 0; i < nVars(); i++)
