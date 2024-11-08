@@ -66,7 +66,7 @@ Solver::Solver() :
   , ccmin_mode       (opt_ccmin_mode)
   , phase_saving     (opt_phase_saving)
   , rnd_pol          (false)
-  , rnd_init_act     (opt_rnd_init_act )
+  , rnd_init_act     (opt_rnd_init_act)
   , garbage_frac     (opt_garbage_frac)
   , min_learnts_lim  (opt_min_learnts_lim)
   , restart_first    (opt_restart_first)
@@ -373,9 +373,6 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel)
     max_literals += out_learnt.size();
     out_learnt.shrink(i - j);
     tot_literals += out_learnt.size();
-
-    // at this point its minimised. do we want this one to be reward determiner or prev? try both and compare
-    // are we incrementing by 1 for each var or saying "at this point add its curr activity to its mean reward"
 
     // Find correct backtrack level:
     //
