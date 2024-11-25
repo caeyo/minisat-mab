@@ -103,6 +103,8 @@ public:
     int     nFreeVars  ()      const;
     void    printStats ()      const;       // Print some current statistics to standard output.
 
+    void    outputStatsCSV  (FILE *out, lbool result)      const;       // Output statistics to a file for processing as a csv.
+
     // Resource contraints:
     //
     void    setConfBudget(int64_t x);
@@ -147,11 +149,13 @@ public:
     double    learntsize_adjust_inc;
 
     bool ucb_on;
+    bool csv;
 
     // Statistics: (read-only member variable)
     //
     uint64_t solves, starts, decisions, rnd_decisions, propagations, conflicts;
     uint64_t dec_vars, num_clauses, num_learnts, clauses_literals, learnts_literals, max_literals, tot_literals;
+    uint64_t totalAssigns;
 
 protected:
 

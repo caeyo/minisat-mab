@@ -47,6 +47,7 @@ static DoubleOption  opt_garbage_frac      (_cat, "gc-frac",     "The fraction o
 static IntOption     opt_min_learnts_lim   (_cat, "min-learnts", "Minimum learnt clause limit",  0, IntRange(0, INT32_MAX));
 
 static BoolOption    opt_ucb               (_cat, "ucb",         "Use UCB", false);
+static BoolOption    opt_csv               (_cat, "csv",         "Output stats to a single-line csv file", false);
 
 
 //=================================================================================================
@@ -71,7 +72,8 @@ Solver::Solver() :
   , min_learnts_lim  (opt_min_learnts_lim)
   , restart_first    (opt_restart_first)
   , restart_inc      (opt_restart_inc)
-  , ucb_on              (opt_ucb)
+  , ucb_on           (opt_ucb)
+  , csv              (opt_csv)
 
     // Parameters (the rest):
     //
@@ -499,6 +501,7 @@ void Solver::uncheckedEnqueue(Lit p, CRef from)
     assert(value(p) == l_Undef);
     assigns[var(p)] = lbool(!sign(p));
     ++assignsCount[var(p)];
+    ++totalAssigns;
     vardata[var(p)] = mkVarData(from, decisionLevel());
     trail.push_(p);
 }
@@ -1037,6 +1040,38 @@ void Solver::printStats() const
     printf("conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", tot_literals, (max_literals - tot_literals)*100 / (double)max_literals);
     if (mem_used != 0) printf("Memory used           : %.2f MB\n", mem_used);
     printf("CPU time              : %g s\n", cpu_time);
+}
+
+void Solver::outputStatsCSV(FILE *out, lbool result) const {
+    // time,number_vars,number_clauses,restarts,conflicts,decisions,propagations,total_pulls,conflict_literals,
+    // percent_deleted_conflict_literals,memory,result,final_assignment
+    double cpu_time = cpuTime();
+    double mem_used = memUsedPeak();
+    fprintf(out, "%g,", cpu_time);  // time
+    fprintf(out, "%d,", nVars());  // number of variables
+    fprintf(out, "%d,", nClauses());  // number of clauses
+    fprintf(out, "%"PRIu64",", starts);  // restarts
+    fprintf(out, "%"PRIu64",", conflicts);  // conflicts
+    fprintf(out, "%"PRIu64",", decisions);  // decisions
+    fprintf(out, "%"PRIu64",", propagations);  // propagations
+    fprintf(out, "%"PRIu64",", totalAssigns);  // total pulls
+    fprintf(out, "%"PRIu64",", tot_literals);  // conflict literals
+    fprintf(out, "%4.2f,", (max_literals - tot_literals)*100 / (double)max_literals);  // percent of conflict literals deleted
+    fprintf(out, "%.2f,", mem_used);  // memory
+    // result and final assignment if SAT
+    if (result == l_True) {
+        fprintf(out, "SAT,");
+        for (int i = 0; i < nVars(); i++) {
+            if (model[i] != l_Undef) {
+                fprintf(out, "%s%s%d", (i==0)?"":" ", (model[i]==l_True)?"":"-", i+1);
+            }
+        }
+        fprintf(out, " 0");
+    } else if (result == l_False) {
+        fprintf(out, "UNSAT,-");
+    } else {
+        fprintf(out, "INDET,-");
+    }
 }
 
 
