@@ -1058,21 +1058,20 @@ void Solver::outputStatsCSV(FILE *out, lbool result) const {
     fprintf(out, "%"PRIu64",", tot_literals);  // conflict literals
     fprintf(out, "%4.2f,", (max_literals - tot_literals)*100 / (double)max_literals);  // percent of conflict literals deleted
     fprintf(out, "%.2f,", mem_used);  // memory
-    /*
     // result and final assignment if SAT
     if (result == l_True) {
         fprintf(out, "SAT,");
-        for (int i = 0; i < nVars(); i++) {
+        /*for (int i = 0; i < nVars(); i++) {
             if (model[i] != l_Undef) {
                 fprintf(out, "%s%s%d", (i==0)?"":" ", (model[i]==l_True)?"":"-", i+1);
             }
         }
-        fprintf(out, " 0");
+        fprintf(out, " 0");*/
     } else if (result == l_False) {
         fprintf(out, "UNSAT,-");
     } else {
         fprintf(out, "INDET,-");
-    }*/
+    }
 }
 
 
