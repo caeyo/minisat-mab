@@ -1058,6 +1058,7 @@ void Solver::outputStatsCSV(FILE *out, lbool result) const {
     fprintf(out, "%"PRIu64",", tot_literals);  // conflict literals
     fprintf(out, "%4.2f,", (max_literals - tot_literals)*100 / (double)max_literals);  // percent of conflict literals deleted
     fprintf(out, "%.2f,", mem_used);  // memory
+    /*
     // result and final assignment if SAT
     if (result == l_True) {
         fprintf(out, "SAT,");
@@ -1071,7 +1072,7 @@ void Solver::outputStatsCSV(FILE *out, lbool result) const {
         fprintf(out, "UNSAT,-");
     } else {
         fprintf(out, "INDET,-");
-    }
+    }*/
 }
 
 
