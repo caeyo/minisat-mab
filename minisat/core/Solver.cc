@@ -48,6 +48,7 @@ static IntOption     opt_min_learnts_lim   (_cat, "min-learnts", "Minimum learnt
 
 static BoolOption    opt_ucb               (_cat, "ucb",         "Use UCB", false);
 static BoolOption    opt_csv               (_cat, "csv",         "Output stats to a single-line csv file", false);
+static DoubleOption  opt_ucb_hyperparam    (_cat, "ucb-hparam",  "UCB hyper param value", 1, DoubleRange(0, false, HUGE_VAL, false));
 
 
 //=================================================================================================
@@ -74,6 +75,7 @@ Solver::Solver() :
   , restart_inc      (opt_restart_inc)
   , ucb_on           (opt_ucb)
   , csv              (opt_csv)
+  , ucbHyperParam    (opt_ucb_hyperparam)
 
     // Parameters (the rest):
     //
@@ -107,7 +109,6 @@ Solver::Solver() :
   , propagation_budget (-1)
   , asynch_interrupt   (false)
 
-  , ucbHyperParam(0.5)
 {}
 
 

@@ -150,6 +150,7 @@ public:
 
     bool ucb_on;
     bool csv;
+    double ucbHyperParam;
 
     // Statistics: (read-only member variable)
     //
@@ -243,7 +244,6 @@ protected:
     bool                asynch_interrupt;
 
     VMap<int> assignsCount;
-    double ucbHyperParam;
 
     // Main internal methods:
     //
