@@ -50,7 +50,7 @@ static BoolOption    opt_ucb               (_cat, "ucb",         "Use UCB", fals
 static BoolOption    opt_csv               (_cat, "csv",         "Output stats to a single-line csv file", false);
 static DoubleOption  opt_ucb_hyperparam    (_cat, "ucb-hparam",  "UCB hyper param value", 1, DoubleRange(0, false, HUGE_VAL, false));
 static BoolOption    opt_ucb_decay         (_cat, "ucb-decay",         "Use UCB decay", false);
-static DoubleOption  opt_ucb_decay_factor  (_cat, "ucb-decay-factor",   "The UCB pull count decay factor",            0.95,     DoubleRange(0, false, 1, false));
+static DoubleOption  opt_ucb_decay_factor  (_cat, "ucb-decay-factor",   "The UCB pull count decay factor",            0.999,     DoubleRange(0, false, 1, false));
 
 
 //=================================================================================================
@@ -510,11 +510,11 @@ void Solver::uncheckedEnqueue(Lit p, CRef from)
 
     // Variable increase to decay pull counts - instead of +1, +pull_inc which gets decayed like var_inc (add ucbDecay() or smth)
     if (ucb_decay) {
-        if ( (assignsCount[var(p)] += ucb_pull_inc) > 1e100 ) {
+        if ( (assignsCount[var(p)] += ucb_pull_inc) > 1e20 ) {
             // Rescale:
             for (int i = 0; i < nVars(); i++)
-                assignsCount[i] *= 1e-100;
-            ucb_pull_inc *= 1e-100;
+                assignsCount[i] *= 1e-20;
+            ucb_pull_inc *= 1e-20;
         }
     } else {
         ++assignsCount[var(p)];
