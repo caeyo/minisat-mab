@@ -151,6 +151,8 @@ public:
     bool ucb_on;
     bool csv;
     double ucbHyperParam;
+    bool ucb_decay;
+    double ucb_decay_factor;
 
     // Statistics: (read-only member variable)
     //
@@ -243,7 +245,8 @@ protected:
     int64_t             propagation_budget; // -1 means no budget.
     bool                asynch_interrupt;
 
-    VMap<int> assignsCount;
+    VMap<double> assignsCount;
+    double ucb_pull_inc;
 
     // Main internal methods:
     //
@@ -270,6 +273,9 @@ protected:
     void     varBumpActivity  (Var v);                 // Increase a variable with the current 'bump' value.
     void     claDecayActivity ();                      // Decay all clauses with the specified factor. Implemented by increasing the 'bump' value instead.
     void     claBumpActivity  (Clause& c);             // Increase a clause with the current 'bump' value.
+
+    // Adding UCB decay factor
+    void     ucbDecayPullCount();
 
     // Operations on clauses:
     //
@@ -315,7 +321,10 @@ inline int  Solver::level (Var x) const { return vardata[x].level; }
 inline void Solver::insertVarOrder(Var x) {
     if (!order_heap.inHeap(x) && decision[x]) order_heap.insert(x); }
 
+// decay activity called every time we add a clause. var_inc is then used in bumping the activity, and so is therefore
+// increased over time until it gets too big and then scaled back down by 1e-100
 inline void Solver::varDecayActivity() { var_inc *= (1 / var_decay); }
+// bump activity called every time a variable is found while constructing conflict clause
 inline void Solver::varBumpActivity(Var v) { varBumpActivity(v, var_inc); }
 inline void Solver::varBumpActivity(Var v, double inc) {
     if (ucb_on)
@@ -337,6 +346,8 @@ inline void Solver::claBumpActivity (Clause& c) {
             for (int i = 0; i < learnts.size(); i++)
                 ca[learnts[i]].activity() *= 1e-20;
             cla_inc *= 1e-20; } }
+
+inline void Solver::ucbDecayPullCount() { ucb_pull_inc *= (1 / ucb_decay_factor); }
 
 inline void Solver::checkGarbage(void){ return checkGarbage(garbage_frac); }
 inline void Solver::checkGarbage(double gf){
