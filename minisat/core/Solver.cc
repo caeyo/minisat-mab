@@ -107,7 +107,7 @@ Solver::Solver() :
   , remove_satisfied   (true)
   , next_var           (0)
 
-  , ucb_pull_inc       (1)
+  , ucb_decay_inc       (1)
 
     // Resource constraints:
     //
@@ -509,16 +509,17 @@ void Solver::uncheckedEnqueue(Lit p, CRef from)
     assigns[var(p)] = lbool(!sign(p));
 
     // Variable increase to decay pull counts - instead of +1, +pull_inc which gets decayed like var_inc (add ucbDecay() or smth)
-    if (ucb_decay) {
-        if ( (assignsCount[var(p)] += ucb_pull_inc) > 1e20 ) {
-            // Rescale:
-            for (int i = 0; i < nVars(); i++)
-                assignsCount[i] *= 1e-20;
-            ucb_pull_inc *= 1e-20;
-        }
-    } else {
-        ++assignsCount[var(p)];
-    }
+    // if (ucb_decay) {
+    //     if ( (assignsCount[var(p)] += ucb_decay_inc) > 1e20 ) {
+    //         // Rescale:
+    //         for (int i = 0; i < nVars(); i++)
+    //             assignsCount[i] *= 1e-20;
+    //         ucb_decay_inc *= 1e-20;
+    //     }
+    // } else {
+    //     ++assignsCount[var(p)];
+    // }
+    assignsCount[var(p)] += ucb_decay_inc; // this will only change from 1 if ucb_decay is enabled, since that gates the ucbDecayCount() call
     ++totalAssigns;
 
     vardata[var(p)] = mkVarData(from, decisionLevel());

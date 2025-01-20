@@ -246,7 +246,7 @@ protected:
     bool                asynch_interrupt;
 
     VMap<double> assignsCount;
-    double ucb_pull_inc;
+    double ucb_decay_inc;
 
     // Main internal methods:
     //
@@ -347,7 +347,12 @@ inline void Solver::claBumpActivity (Clause& c) {
                 ca[learnts[i]].activity() *= 1e-20;
             cla_inc *= 1e-20; } }
 
-inline void Solver::ucbDecayPullCount() { ucb_pull_inc *= (1 / ucb_decay_factor); }
+inline void Solver::ucbDecayPullCount() {
+    // ucb_decay_inc *= (1 / ucb_decay_factor);
+    // we decay this by making it smaller instead of larger because then less is added to pullCounts, and therefore the total ucb bonus
+    // goes up (since the pull count is in the denominator), thus newer pulls are worth more to the bonus
+    ucb_decay_inc *= ucb_decay_factor;
+}
 
 inline void Solver::checkGarbage(void){ return checkGarbage(garbage_frac); }
 inline void Solver::checkGarbage(double gf){
