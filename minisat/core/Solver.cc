@@ -49,8 +49,6 @@ static IntOption     opt_min_learnts_lim   (_cat, "min-learnts", "Minimum learnt
 static BoolOption    opt_ucb               (_cat, "ucb",         "Use UCB", false);
 static BoolOption    opt_csv               (_cat, "csv",         "Output stats to a single-line csv file", false);
 static DoubleOption  opt_ucb_hyperparam    (_cat, "ucb-hparam",  "UCB hyper param value", 1, DoubleRange(0, false, HUGE_VAL, false));
-static BoolOption    opt_ucb_decay         (_cat, "ucb-decay",         "Use UCB decay", false);
-static DoubleOption  opt_ucb_decay_factor  (_cat, "ucb-decay-factor",   "The UCB pull count decay factor",            0.999,     DoubleRange(0, false, 1, false));
 
 
 //=================================================================================================
@@ -78,8 +76,6 @@ Solver::Solver() :
   , ucb_on           (opt_ucb)
   , csv              (opt_csv)
   , ucbHyperParam    (opt_ucb_hyperparam)
-  , ucb_decay        (opt_ucb_decay)
-  , ucb_decay_factor (opt_ucb_decay_factor)
 
     // Parameters (the rest):
     //
@@ -106,8 +102,6 @@ Solver::Solver() :
   , progress_estimate  (0)
   , remove_satisfied   (true)
   , next_var           (0)
-
-  , ucb_decay_inc       (1)
 
     // Resource constraints:
     //
@@ -211,7 +205,7 @@ void Solver::attachClause(CRef cr){
 void Solver::detachClause(CRef cr, bool strict){
     const Clause& c = ca[cr];
     assert(c.size() > 1);
-    
+
     // Strict or lazy detaching:
     if (strict){
         remove(watches[~c[0]], Watcher(cr, c[1]));
@@ -231,7 +225,7 @@ void Solver::removeClause(CRef cr) {
     detachClause(cr);
     // Don't leave pointers to free'd memory!
     if (locked(c)) vardata[var(c[0])].reason = CRef_Undef;
-    c.mark(1); 
+    c.mark(1);
     ca.free(cr);
 }
 
@@ -507,21 +501,8 @@ void Solver::uncheckedEnqueue(Lit p, CRef from)
 {
     assert(value(p) == l_Undef);
     assigns[var(p)] = lbool(!sign(p));
-
-    // Variable increase to decay pull counts - instead of +1, +pull_inc which gets decayed like var_inc (add ucbDecay() or smth)
-    // if (ucb_decay) {
-    //     if ( (assignsCount[var(p)] += ucb_decay_inc) > 1e20 ) {
-    //         // Rescale:
-    //         for (int i = 0; i < nVars(); i++)
-    //             assignsCount[i] *= 1e-20;
-    //         ucb_decay_inc *= 1e-20;
-    //     }
-    // } else {
-    //     ++assignsCount[var(p)];
-    // }
-    assignsCount[var(p)] += ucb_decay_inc; // this will only change from 1 if ucb_decay is enabled, since that gates the ucbDecayCount() call
+    ++assignsCount[var(p)];
     ++totalAssigns;
-
     vardata[var(p)] = mkVarData(from, decisionLevel());
     trail.push_(p);
 }
@@ -781,8 +762,6 @@ lbool Solver::search(int nof_conflicts)
             // We've added a clause, so here we apply the decaying constant for next decision
             varDecayActivity();
             claDecayActivity();
-            if (ucb_decay)
-                ucbDecayPullCount();
 
             if (--learntsize_adjust_cnt == 0){
                 learntsize_adjust_confl *= learntsize_adjust_inc;
@@ -968,14 +947,14 @@ bool Solver::implies(const vec<Lit>& assumps, vec<Lit>& out)
             out.push(trail[j]);
     }else
         ret = false;
-    
+
     cancelUntil(0);
     return ret;
 }
 
 //=================================================================================================
 // Writing CNF to DIMACS:
-// 
+//
 // FIXME: this needs to be rewritten completely.
 
 static Var mapVar(Var x, vec<Var>& map, Var& max)
@@ -1024,7 +1003,7 @@ void Solver::toDimacs(FILE* f, const vec<Lit>& assumps)
     for (int i = 0; i < clauses.size(); i++)
         if (!satisfied(ca[clauses[i]]))
             cnt++;
-        
+
     for (int i = 0; i < clauses.size(); i++)
         if (!satisfied(ca[clauses[i]])){
             Clause& c = ca[clauses[i]];
@@ -1151,11 +1130,11 @@ void Solver::garbageCollect()
 {
     // Initialize the next region to a size corresponding to the estimated utilization degree. This
     // is not precise but should avoid some unnecessary reallocations for the new region:
-    ClauseAllocator to(ca.size() - ca.wasted()); 
+    ClauseAllocator to(ca.size() - ca.wasted());
 
     relocAll(to);
     if (verbosity >= 2)
-        printf("|  Garbage collection:   %12d bytes => %12d bytes             |\n", 
+        printf("|  Garbage collection:   %12d bytes => %12d bytes             |\n",
                ca.size()*ClauseAllocator::Unit_Size, to.size()*ClauseAllocator::Unit_Size);
     to.moveTo(ca);
 }

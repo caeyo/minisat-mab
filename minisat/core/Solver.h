@@ -151,8 +151,6 @@ public:
     bool ucb_on;
     bool csv;
     double ucbHyperParam;
-    bool ucb_decay;
-    double ucb_decay_factor;
 
     // Statistics: (read-only member variable)
     //
@@ -245,8 +243,7 @@ protected:
     int64_t             propagation_budget; // -1 means no budget.
     bool                asynch_interrupt;
 
-    VMap<double> assignsCount;
-    double ucb_decay_inc;
+    VMap<int> assignsCount;
 
     // Main internal methods:
     //
@@ -273,9 +270,6 @@ protected:
     void     varBumpActivity  (Var v);                 // Increase a variable with the current 'bump' value.
     void     claDecayActivity ();                      // Decay all clauses with the specified factor. Implemented by increasing the 'bump' value instead.
     void     claBumpActivity  (Clause& c);             // Increase a clause with the current 'bump' value.
-
-    // Adding UCB decay factor
-    void     ucbDecayPullCount();
 
     // Operations on clauses:
     //
@@ -347,13 +341,6 @@ inline void Solver::claBumpActivity (Clause& c) {
                 ca[learnts[i]].activity() *= 1e-20;
             cla_inc *= 1e-20; } }
 
-inline void Solver::ucbDecayPullCount() {
-    // ucb_decay_inc *= (1 / ucb_decay_factor);
-    // we decay this by making it smaller instead of larger because then less is added to pullCounts, and therefore the total ucb bonus
-    // goes up (since the pull count is in the denominator), thus newer pulls are worth more to the bonus
-    ucb_decay_inc *= ucb_decay_factor;
-}
-
 inline void Solver::checkGarbage(void){ return checkGarbage(garbage_frac); }
 inline void Solver::checkGarbage(double gf){
     if (ca.wasted() > ca.size() * gf)
@@ -385,8 +372,8 @@ inline int      Solver::nVars         ()      const   { return next_var; }
 // TODO: nFreeVars() is not quite correct, try to calculate right instead of adapting it like below:
 inline int      Solver::nFreeVars     ()      const   { return (int)dec_vars - (trail_lim.size() == 0 ? trail.size() : trail_lim[0]); }
 inline void     Solver::setPolarity   (Var v, lbool b){ user_pol[v] = b; }
-inline void     Solver::setDecisionVar(Var v, bool b) 
-{ 
+inline void     Solver::setDecisionVar(Var v, bool b)
+{
     if      ( b && !decision[v]) dec_vars++;
     else if (!b &&  decision[v]) dec_vars--;
 
@@ -417,7 +404,7 @@ inline bool     Solver::okay          ()      const   { return ok; }
 inline ClauseIterator Solver::clausesBegin() const { return ClauseIterator(ca, &clauses[0]); }
 inline ClauseIterator Solver::clausesEnd  () const { return ClauseIterator(ca, &clauses[clauses.size()]); }
 inline TrailIterator  Solver::trailBegin  () const { return TrailIterator(&trail[0]); }
-inline TrailIterator  Solver::trailEnd    () const { 
+inline TrailIterator  Solver::trailEnd    () const {
     return TrailIterator(&trail[decisionLevel() == 0 ? trail.size() : trail_lim[0]]); }
 
 inline void     Solver::toDimacs     (const char* file){ vec<Lit> as; toDimacs(file, as); }
