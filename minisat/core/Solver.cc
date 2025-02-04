@@ -90,6 +90,7 @@ Solver::Solver() :
     //
   , solves(0), starts(0), decisions(0), rnd_decisions(0), propagations(0), conflicts(0)
   , dec_vars(0), num_clauses(0), num_learnts(0), clauses_literals(0), learnts_literals(0), max_literals(0), tot_literals(0)
+  , totalAssigns(0)
 
   , watches            (WatcherDeleted(ca))
   , order_heap         (VarOrderLt(activity))
