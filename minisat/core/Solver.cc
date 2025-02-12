@@ -1002,6 +1002,43 @@ void Solver::printStats() const
 }
 
 
+void Solver::outputStatsCSV(FILE *out, lbool result) const {
+    double cpu_time = cpuTime();
+    double mem_used = memUsedPeak();
+
+    // time,number_vars,number_clauses,restarts,conflicts,decisions,propagations,conflict_literals,
+    // percent_deleted_conflict_literals,memory,
+    fprintf(out, "%g,%d,%d,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%4.2f,%.2f,",
+        cpu_time, nVars(), nClauses(), starts, conflicts, decisions, propagations, tot_literals,
+        (max_literals - tot_literals)*100 / (double)max_literals, mem_used);
+
+    // result
+    if (result == l_True) {
+        fprintf(out, "SAT");
+    } else if (result == l_False) {
+        fprintf(out, "UNSAT");
+    } else {
+        fprintf(out, "INDET");
+    }
+
+    /* IF WANT final_assignment IN STATISTICS
+    if (result == l_True) {
+        fprintf(out, "SAT,");
+        for (int i = 0; i < nVars(); i++) {
+            if (model[i] != l_Undef) {
+                fprintf(out, "%s%s%d", (i==0)?"":" ", (model[i]==l_True)?"":"-", i+1);
+            }
+        }
+        fprintf(out, " 0");
+    } else if (result == l_False) {
+        fprintf(out, "UNSAT,-");
+    } else {
+        fprintf(out, "INDET,-");
+    }
+    */
+}
+
+
 //=================================================================================================
 // Garbage Collection methods:
 

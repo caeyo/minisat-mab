@@ -102,6 +102,7 @@ public:
     int     nVars      ()      const;       // The current number of variables.
     int     nFreeVars  ()      const;
     void    printStats ()      const;       // Print some current statistics to standard output.
+    void    outputStatsCSV (FILE *out, lbool result) const;  // Output statistics to a file for processing as a csv.
 
     // Resource contraints:
     //
