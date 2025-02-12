@@ -23,6 +23,11 @@ else()
 endif()
 set(MINISAT_SOVERSION ${MINISAT_SOMAJOR})
 
+# Enable `MACOSX_RPATH` if needed
+if (POLICY CMP0042)
+    cmake_policy(SET CMP0042 NEW)
+endif()
+
 #--------------------------------------------------------------------------------------------------
 # Dependencies:
 
