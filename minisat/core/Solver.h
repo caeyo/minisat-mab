@@ -87,7 +87,6 @@ public:
     
     // Variable mode:
     // 
-    void    setPolarity    (Var v, lbool b); // Declare which polarity the decision heuristic should use for a variable. Requires mode 'polarity_user'.
     void    setDecisionVar (Var v, bool b);  // Declare if a variable should be eligible for selection in the decision heuristic, and insert into the order_heap.
 
     // Read state:
@@ -133,8 +132,6 @@ public:
     double    random_seed;
     bool      luby_restart;
     int       ccmin_mode;         // Controls conflict clause minimization (0=none, 1=basic, 2=deep).
-    int       phase_saving;       // Controls the level of phase saving (0=none, 1=limited, 2=full).
-    bool      rnd_pol;            // Use random polarities for branching heuristics.
     bool      rnd_init_act;       // Initialize variable activities with a small random value.
     double    garbage_frac;       // The fraction of wasted memory allowed before a garbage collection is triggered.
     int       min_learnts_lim;    // Minimum number to set the learnts limit to.
@@ -196,8 +193,6 @@ protected:
 
     LMap<double>        activity;         // A heuristic measurement of the activity of a literal.
     VMap<lbool>         assigns;          // The current assignments.
-    VMap<char>          polarity;         // The preferred polarity of each variable.
-    VMap<lbool>         user_pol;         // The users preferred polarity of each variable.
     VMap<char>          decision;         // Declares if a variable is eligible for selection in the decision heuristic.
     VMap<VarData>       vardata;          // Stores reason and level for each variable.
     OccLists<Lit, vec<Watcher>, WatcherDeleted, MkIndexLit>
@@ -370,8 +365,7 @@ inline int      Solver::nLearnts      ()      const   { return num_learnts; }
 inline int      Solver::nVars         ()      const   { return next_var; }
 // TODO: nFreeVars() is not quite correct, try to calculate right instead of adapting it like below:
 inline int      Solver::nFreeVars     ()      const   { return (int)dec_vars - (trail_lim.size() == 0 ? trail.size() : trail_lim[0]); }
-inline void     Solver::setPolarity   (Var v, lbool b){ user_pol[v] = b; }
-inline void     Solver::setDecisionVar(Var v, bool b) 
+inline void     Solver::setDecisionVar(Var v, bool b)
 { 
     if      ( b && !decision[v]) dec_vars++;
     else if (!b &&  decision[v]) dec_vars--;

@@ -38,7 +38,6 @@ static DoubleOption  opt_clause_decay      (_cat, "cla-decay",   "The clause act
 static DoubleOption  opt_random_var_freq   (_cat, "rnd-freq",    "The frequency with which the decision heuristic tries to choose a random variable", 0, DoubleRange(0, true, 1, true));
 static DoubleOption  opt_random_seed       (_cat, "rnd-seed",    "Used by the random variable selection",         91648253, DoubleRange(0, false, HUGE_VAL, false));
 static IntOption     opt_ccmin_mode        (_cat, "ccmin-mode",  "Controls conflict clause minimization (0=none, 1=basic, 2=deep)", 2, IntRange(0, 2));
-static IntOption     opt_phase_saving      (_cat, "phase-saving", "Controls the level of phase saving (0=none, 1=limited, 2=full)", 2, IntRange(0, 2));
 static BoolOption    opt_rnd_init_act      (_cat, "rnd-init",    "Randomize the initial activity", false);
 static BoolOption    opt_luby_restart      (_cat, "luby",        "Use the Luby restart sequence", true);
 static IntOption     opt_restart_first     (_cat, "rfirst",      "The base restart interval", 100, IntRange(1, INT32_MAX));
@@ -62,8 +61,6 @@ Solver::Solver() :
   , random_seed      (opt_random_seed)
   , luby_restart     (opt_luby_restart)
   , ccmin_mode       (opt_ccmin_mode)
-  , phase_saving     (opt_phase_saving)
-  , rnd_pol          (false)
   , rnd_init_act     (opt_rnd_init_act)
   , garbage_frac     (opt_garbage_frac)
   , min_learnts_lim  (opt_min_learnts_lim)
@@ -132,8 +129,6 @@ Var Solver::newVar(lbool upol, bool dvar)
     activity .insert(mkLit(v, false), rnd_init_act ? drand(random_seed) * 0.00001 : 0);
     activity .insert(mkLit(v, true), rnd_init_act ? drand(random_seed) * 0.00001 : 0);
     seen     .insert(v, 0);
-    polarity .insert(v, true);
-    user_pol .insert(v, upol);
     decision .reserve(v);
     trail    .capacity(v+1);
     setDecisionVar(v, dvar);
@@ -234,8 +229,6 @@ void Solver::cancelUntil(int level) {
         for (int c = trail.size()-1; c >= trail_lim[level]; c--){
             Var      x  = var(trail[c]);
             assigns [x] = l_Undef;
-            if (phase_saving > 1 || (phase_saving == 1 && c > trail_lim.last()))
-                polarity[x] = sign(trail[c]);
             insertVarOrder(x); }
         qhead = trail_lim[level];
         trail.shrink(trail.size() - trail_lim[level]);
@@ -267,14 +260,6 @@ Lit Solver::pickBranchLit()
 
     return next;
     // Choose polarity based on different polarity modes (global or per-variable):
-    if (next == var_Undef)
-        return lit_Undef;
-    else if (user_pol[next] != l_Undef)
-        return mkLit(next, user_pol[next] == l_True);
-    else if (rnd_pol)
-        return mkLit(next, drand(random_seed) < 0.5);
-    else
-        return mkLit(next, polarity[next]);
 }
 
 
