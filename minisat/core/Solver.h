@@ -88,7 +88,7 @@ public:
     // Variable mode:
     // 
     void    setPolarity    (Var v, lbool b); // Declare which polarity the decision heuristic should use for a variable. Requires mode 'polarity_user'.
-    void    setDecisionVar (Var v, bool b);  // Declare if a variable should be eligible for selection in the decision heuristic.
+    void    setDecisionVar (Var v, bool b);  // Declare if a variable should be eligible for selection in the decision heuristic, and insert into the order_heap.
 
     // Read state:
     //
@@ -127,7 +127,7 @@ public:
     // Mode of operation:
     //
     int       verbosity;
-    double    var_decay;
+    double    lit_decay;
     double    clause_decay;
     double    random_var_freq;
     double    random_seed;
@@ -174,10 +174,10 @@ protected:
         bool operator()(const Watcher& w) const { return ca[w.cref].mark() == 1; }
     };
 
-    struct VarOrderLt {
-        const IntMap<Var, double>&  activity;
-        bool operator () (Var x, Var y) const { return activity[x] > activity[y]; }
-        VarOrderLt(const IntMap<Var, double>&  act) : activity(act) { }
+    struct LitOrderLt {
+        const IntMap<Lit, double, MkIndexLit>&  activity;
+        bool operator () (Lit x, Lit y) const { return activity[x] > activity[y]; }
+        LitOrderLt(const IntMap<Lit, double, MkIndexLit>&  act) : activity(act) { }
     };
 
     struct ShrinkStackElem {
@@ -194,7 +194,7 @@ protected:
     vec<int>            trail_lim;        // Separator indices for different decision levels in 'trail'.
     vec<Lit>            assumptions;      // Current set of assumptions provided to solve by the user.
 
-    VMap<double>        activity;         // A heuristic measurement of the activity of a variable.
+    LMap<double>        activity;         // A heuristic measurement of the activity of a literal.
     VMap<lbool>         assigns;          // The current assignments.
     VMap<char>          polarity;         // The preferred polarity of each variable.
     VMap<lbool>         user_pol;         // The users preferred polarity of each variable.
@@ -203,11 +203,11 @@ protected:
     OccLists<Lit, vec<Watcher>, WatcherDeleted, MkIndexLit>
                         watches;          // 'watches[lit]' is a list of constraints watching 'lit' (will go there if literal becomes true).
 
-    Heap<Var,VarOrderLt>order_heap;       // A priority queue of variables ordered with respect to the variable activity.
+    Heap<Lit,LitOrderLt,MkIndexLit> order_heap;       // A priority queue of literals ordered with respect to the literal activity.
 
     bool                ok;               // If FALSE, the constraints are already unsatisfiable. No part of the solver state may be used!
     double              cla_inc;          // Amount to bump next clause with.
-    double              var_inc;          // Amount to bump next variable with.
+    double              lit_inc;          // Amount to bump next literal's activity with.
     int                 qhead;            // Head of queue (as index into the trail -- no more explicit propagation queue in MiniSat).
     int                 simpDB_assigns;   // Number of top-level assignments since last execution of 'simplify()'.
     int64_t             simpDB_props;     // Remaining number of propagations that must be made before next execution of 'simplify()'.
@@ -257,9 +257,9 @@ protected:
 
     // Maintaining Variable/Clause activity:
     //
-    void     varDecayActivity ();                      // Decay all variables with the specified factor. Implemented by increasing the 'bump' value instead.
-    void     varBumpActivity  (Var v, double inc);     // Increase a variable with the current 'bump' value.
-    void     varBumpActivity  (Var v);                 // Increase a variable with the current 'bump' value.
+    void     litDecayActivity ();                      // Decay all variables with the specified factor. Implemented by increasing the 'bump' value instead.
+    void     litBumpActivity  (Lit l, double inc);     // Increase a variable with the current 'bump' value.
+    void     litBumpActivity  (Lit l);                 // Increase a variable with the current 'bump' value.
     void     claDecayActivity ();                      // Decay all clauses with the specified factor. Implemented by increasing the 'bump' value instead.
     void     claBumpActivity  (Clause& c);             // Increase a clause with the current 'bump' value.
 
@@ -305,20 +305,32 @@ inline CRef Solver::reason(Var x) const { return vardata[x].reason; }
 inline int  Solver::level (Var x) const { return vardata[x].level; }
 
 inline void Solver::insertVarOrder(Var x) {
-    if (!order_heap.inHeap(x) && decision[x]) order_heap.insert(x); }
+    if (decision[x]) {
+        Lit neg = mkLit(x, false);
+        if (!order_heap.inHeap(neg)) {
+            order_heap.insert(neg);
+        }
+        Lit pos = mkLit(x, true);
+        if (!order_heap.inHeap(pos)) {
+            order_heap.insert(pos);
+        }
+    }
+}
 
-inline void Solver::varDecayActivity() { var_inc *= (1 / var_decay); }
-inline void Solver::varBumpActivity(Var v) { varBumpActivity(v, var_inc); }
-inline void Solver::varBumpActivity(Var v, double inc) {
-    if ( (activity[v] += inc) > 1e100 ) {
+inline void Solver::litDecayActivity() { lit_inc *= (1 / lit_decay); }
+inline void Solver::litBumpActivity(Lit l) { litBumpActivity(l, lit_inc); }
+inline void Solver::litBumpActivity(Lit l, double inc) {
+    if ( (activity[l] += inc) > 1e100 ) {
         // Rescale:
-        for (int i = 0; i < nVars(); i++)
-            activity[i] *= 1e-100;
-        var_inc *= 1e-100; }
+        for (int i = 0; i < nVars(); i++) {
+            activity[mkLit(i, false)] *= 1e-100;
+            activity[mkLit(i, true)] *= 1e-100;
+        }
+        lit_inc *= 1e-100; }
 
     // Update order_heap with respect to new activity:
-    if (order_heap.inHeap(v))
-        order_heap.decrease(v); }
+    if (order_heap.inHeap(l))
+        order_heap.decrease(l); }
 
 inline void Solver::claDecayActivity() { cla_inc *= (1 / clause_decay); }
 inline void Solver::claBumpActivity (Clause& c) {
