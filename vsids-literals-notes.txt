@@ -1,7 +1,3 @@
-4:24-
-
-TODO: investigate how eliminated literals play with this new order stuff. Do they get appropriately eliminated too?
-
 - Want to change the ordered heap from variable focused to literal focused
 
 To change, on `order_heap` and `activity`:
@@ -25,3 +21,8 @@ change decision[x]? NO
 			just assume that we can add the two literals to the heap right?
 		setDecisionVar
 			fine to keep too
+
+investigate how eliminated literals play with this new order stuff. Do they get appropriately eliminated too?
+	it seems like that's more for eliminated/learned clauses. The statistics that you see in output count from the
+	literals in those clauses and so decrease as they're removed. Because we base decisions based on validity of
+	variables it should still be fine to piggyback off existing impl of this constraint
