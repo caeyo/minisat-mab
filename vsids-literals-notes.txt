@@ -1,0 +1,28 @@
+4:24-
+
+
+- Want to change the ordered heap from variable focused to literal focused
+
+To change, on `order_heap` and `activity`:
+- Everywhere it's pulled from:
+	Make sure each place can recognise/take a literal
+- Everywhere it's updated:
+	Make sure each update is on a literal basis
+- Where it's initialised:
+	Make sure it's initialised on the basis of literals
+
+Then, rip out phase saving
+
+TODO: mkLit vs toLit?
+
+change decision[x]? NO
+	maybe keep as VMap for now, since it precludes a var from being selected, which should be fine. This is actually
+	probably better because it means that it encodes the condition that you can't select both - you don't want to
+	get into pickBranchLit() and choose the opposite polarity of a lit already selected, so checking that will still
+	work
+	the other uses are rebuildOrderHeap and setDecisionVar
+		rebuildOrderHeap
+			I think it's fine as-is, it's checking if a variable is able to be declared and is undefined. If so, we can
+			just assume that we can add the two literals to the heap right?
+		setDecisionVar
+			fine to keep too
