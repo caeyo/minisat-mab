@@ -1,5 +1,6 @@
 4:24-
 
+TODO: investigate how eliminated literals play with this new order stuff. Do they get appropriately eliminated too?
 
 - Want to change the ordered heap from variable focused to literal focused
 
@@ -12,8 +13,6 @@ To change, on `order_heap` and `activity`:
 	Make sure it's initialised on the basis of literals
 
 Then, rip out phase saving
-
-TODO: mkLit vs toLit?
 
 change decision[x]? NO
 	maybe keep as VMap for now, since it precludes a var from being selected, which should be fine. This is actually
