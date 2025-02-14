@@ -112,14 +112,7 @@ int main(int argc, char** argv)
         // First tries to simplify out satisfied clauses, fails if current constraints are already satisfiable (!ok) or
         // if propagate() returns undefined
         if (!S.simplify()){
-            if (res != NULL) {
-                if (S.csv) {
-                    S.outputStatsCSV(res, l_False);
-                } else {
-                    fprintf(res, "UNSAT\n");
-                }
-                fclose(res);
-            }
+            if (res != NULL) fprintf(res, "UNSAT\n"), fclose(res);
             if (S.verbosity > 0){
                 printf("===============================================================================\n");
                 printf("Solved by unit propagation\n");
@@ -138,20 +131,16 @@ int main(int argc, char** argv)
             printf("\n"); }
         printf(ret == l_True ? "SATISFIABLE\n" : ret == l_False ? "UNSATISFIABLE\n" : "INDETERMINATE\n");
         if (res != NULL){
-            if (S.csv) {
-                S.outputStatsCSV(res, ret);
-            } else {
-                if (ret == l_True){
-                    fprintf(res, "SAT\n");
-                    for (int i = 0; i < S.nVars(); i++)
-                        if (S.model[i] != l_Undef)
-                            fprintf(res, "%s%s%d", (i==0)?"":" ", (S.model[i]==l_True)?"":"-", i+1);
-                    fprintf(res, " 0\n");
-                }else if (ret == l_False)
-                    fprintf(res, "UNSAT\n");
-                else
-                    fprintf(res, "INDET\n");
-            }
+            if (ret == l_True){
+                fprintf(res, "SAT\n");
+                for (int i = 0; i < S.nVars(); i++)
+                    if (S.model[i] != l_Undef)
+                        fprintf(res, "%s%s%d", (i==0)?"":" ", (S.model[i]==l_True)?"":"-", i+1);
+                fprintf(res, " 0\n");
+            }else if (ret == l_False)
+                fprintf(res, "UNSAT\n");
+            else
+                fprintf(res, "INDET\n");
             fclose(res);
         }
         

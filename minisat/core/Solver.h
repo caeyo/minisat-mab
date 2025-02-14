@@ -102,8 +102,7 @@ public:
     int     nVars      ()      const;       // The current number of variables.
     int     nFreeVars  ()      const;
     void    printStats ()      const;       // Print some current statistics to standard output.
-
-    void    outputStatsCSV  (FILE *out, lbool result)      const;       // Output statistics to a file for processing as a csv.
+    void    outputStatsCSV (FILE *out, lbool result) const;  // Output statistics to a file for processing as a csv.
 
     // Resource contraints:
     //
@@ -149,7 +148,6 @@ public:
     double    learntsize_adjust_inc;
 
     bool ucb_on;
-    bool csv;
     double ucbHyperParam;
 
     // Statistics: (read-only member variable)
