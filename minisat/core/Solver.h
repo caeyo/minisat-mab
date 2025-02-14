@@ -315,7 +315,10 @@ inline void Solver::insertVarOrder(Var x) {
 
 // decay activity called every time we add a clause. var_inc is then used in bumping the activity, and so is therefore
 // increased over time until it gets too big and then scaled back down by 1e-100
-inline void Solver::varDecayActivity() { var_inc *= (1 / var_decay); }
+inline void Solver::varDecayActivity() {
+    var_inc *= (1 / var_decay);
+    ucbHyperParam *= 1 / var_decay;
+}
 // bump activity called every time a variable is found while constructing conflict clause
 inline void Solver::varBumpActivity(Var v) { varBumpActivity(v, var_inc); }
 inline void Solver::varBumpActivity(Var v, double inc) {
@@ -325,7 +328,9 @@ inline void Solver::varBumpActivity(Var v, double inc) {
         // Rescale:
         for (int i = 0; i < nVars(); i++)
             activity[i] *= 1e-100;
-        var_inc *= 1e-100; }
+        var_inc *= 1e-100;
+        ucbHyperParam *= 1e-100;
+    }
 
     // Update order_heap with respect to new activity:
     if (order_heap.inHeap(v))
