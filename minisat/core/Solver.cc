@@ -227,9 +227,10 @@ bool Solver::satisfied(const Clause& c) const {
 void Solver::cancelUntil(int level) {
     if (decisionLevel() > level){
         for (int c = trail.size()-1; c >= trail_lim[level]; c--){
-            Var      x  = var(trail[c]);
+            Lit l = trail[c];
+            Var      x  = var(l);
             assigns [x] = l_Undef;
-            insertVarOrder(x); }
+            insertLitOrder(l); }
         qhead = trail_lim[level];
         trail.shrink(trail.size() - trail_lim[level]);
         trail_lim.shrink(trail_lim.size() - level);
