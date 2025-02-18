@@ -311,6 +311,7 @@ inline void Solver::litBumpActivity(Lit l, double inc) {
     if ( (activity[l] += inc) > 1e100 ) {
         // Rescale:
         for (int i = 0; i < nVars(); i++) {
+        // TODO: find a better way of doing this - this may scale lits that aren't in the heap? Not a hot code path though
             activity[mkLit(i, false)] *= 1e-100;
             activity[mkLit(i, true)] *= 1e-100;
         }

@@ -613,6 +613,9 @@ void Solver::rebuildOrderHeap()
     vec<Lit> vs;
     for (Var v = 0; v < nVars(); v++)
         if (decision[v] && value(v) == l_Undef) {
+            /* TODO: don't push T/F versions of each lit? This may be a symptom of still using var[] decision instead of lit[],
+               but not sure.
+               This is not a hot code path though so low priority, but addressing the var[] issue may be a higher one... */
             vs.push(mkLit(v, false));
             vs.push(mkLit(v, true));
         }
