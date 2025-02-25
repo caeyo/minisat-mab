@@ -234,7 +234,7 @@ protected:
 
     // Main internal methods:
     //
-    void     insertLitOrder   (Lit x);                                                 // Insert a variable in the decision order priority queue.
+    void     insertVarOrder   (Var x);                                                 // Insert a variable in the decision order priority queue.
     Lit      pickBranchLit    ();                                                      // Return the next decision variable.
     void     newDecisionLevel ();                                                      // Begins a new decision level.
     void     uncheckedEnqueue (Lit p, CRef from = CRef_Undef);                         // Enqueue a literal. Assumes value of literal is undefined.
@@ -299,9 +299,16 @@ protected:
 inline CRef Solver::reason(Var x) const { return vardata[x].reason; }
 inline int  Solver::level (Var x) const { return vardata[x].level; }
 
-inline void Solver::insertLitOrder(Lit x) {
-    if (decision[var(x)] && !order_heap.inHeap(x)) {
-        order_heap.insert(x);
+inline void Solver::insertVarOrder(Var x) {
+    if (decision[x]) {
+        Lit neg = mkLit(x, false);
+        if (!order_heap.inHeap(neg)) {
+            order_heap.insert(neg);
+        }
+        Lit pos = mkLit(x, true);
+        if (!order_heap.inHeap(pos)) {
+            order_heap.insert(pos);
+        }
     }
 }
 
@@ -365,9 +372,7 @@ inline void     Solver::setDecisionVar(Var v, bool b)
     else if (!b &&  decision[v]) dec_vars--;
 
     decision[v] = b;
-    // TODO: mkLit
-    insertLitOrder(mkLit(v, false));
-    insertLitOrder(mkLit(v, true));
+    insertVarOrder(v);
 }
 inline void     Solver::setConfBudget(int64_t x){ conflict_budget    = conflicts    + x; }
 inline void     Solver::setPropBudget(int64_t x){ propagation_budget = propagations + x; }
