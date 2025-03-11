@@ -301,11 +301,12 @@ inline int  Solver::level (Var x) const { return vardata[x].level; }
 
 inline void Solver::insertVarOrder(Var x) {
     if (decision[x]) {
-        Lit neg = mkLit(x, false);
+        int l = x << 1;
+        Lit neg = { l };
         if (!order_heap.inHeap(neg)) {
             order_heap.insert(neg);
         }
-        Lit pos = mkLit(x, true);
+        Lit pos = { l | 1 };
         if (!order_heap.inHeap(pos)) {
             order_heap.insert(pos);
         }
@@ -317,10 +318,12 @@ inline void Solver::litBumpActivity(Lit l) { litBumpActivity(l, lit_inc); }
 inline void Solver::litBumpActivity(Lit l, double inc) {
     if ( (activity[l] += inc) > 1e100 ) {
         // Rescale:
-        for (int i = 0; i < nVars(); i++) {
-        // TODO: mkLit
-            activity[mkLit(i, false)] *= 1e-100;
-            activity[mkLit(i, true)] *= 1e-100;
+        // double *p = activity.begin();
+        // for (const double *end = activity.end(); p < end; ++p) {
+        //     *p *= 1e-100;
+        // }
+        for (int i = 0; i < nVars() << 1; i++) {
+            activity[{i}] *= 1e-100;
         }
         lit_inc *= 1e-100; }
 
