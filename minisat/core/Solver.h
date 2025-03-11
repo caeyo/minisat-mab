@@ -171,10 +171,10 @@ protected:
         bool operator()(const Watcher& w) const { return ca[w.cref].mark() == 1; }
     };
 
-    struct LitAsIntOrderLt {
-        const vec<double>&  activity;
-        bool operator () (int x, int y) const { return activity[x] > activity[y]; }
-        LitAsIntOrderLt(const vec<double>&  act) : activity(act) { }
+    struct LitOrderLt {
+        const IntMap<Lit, double, MkIndexLit>&  activity;
+        bool operator () (Lit x, Lit y) const { return activity[x] > activity[y]; }
+        LitOrderLt(const IntMap<Lit, double, MkIndexLit>&  act) : activity(act) { }
     };
 
     struct ShrinkStackElem {
@@ -191,14 +191,14 @@ protected:
     vec<int>            trail_lim;        // Separator indices for different decision levels in 'trail'.
     vec<Lit>            assumptions;      // Current set of assumptions provided to solve by the user.
 
-    vec<double>         activity;         // A heuristic measurement of the activity of a literal.
+    LMap<double>        activity;         // A heuristic measurement of the activity of a literal.
     VMap<lbool>         assigns;          // The current assignments.
     VMap<char>          decision;         // Declares if a variable is eligible for selection in the decision heuristic.
     VMap<VarData>       vardata;          // Stores reason and level for each variable.
     OccLists<Lit, vec<Watcher>, WatcherDeleted, MkIndexLit>
                         watches;          // 'watches[lit]' is a list of constraints watching 'lit' (will go there if literal becomes true).
 
-    Heap<int,LitAsIntOrderLt> order_heap;       // A priority queue of literals ordered with respect to the literal activity.
+    Heap<Lit,LitOrderLt,MkIndexLit> order_heap;       // A priority queue of literals ordered with respect to the literal activity.
 
     bool                ok;               // If FALSE, the constraints are already unsatisfiable. No part of the solver state may be used!
     double              cla_inc;          // Amount to bump next clause with.
@@ -253,8 +253,8 @@ protected:
     // Maintaining Variable/Clause activity:
     //
     void     litDecayActivity ();                      // Decay all variables with the specified factor. Implemented by increasing the 'bump' value instead.
-    void     litBumpActivity  (int l, double inc);     // Increase a variable with the current 'bump' value.
-    void     litBumpActivity  (int l);                 // Increase a variable with the current 'bump' value.
+    void     litBumpActivity  (Lit l, double inc);     // Increase a variable with the current 'bump' value.
+    void     litBumpActivity  (Lit l);                 // Increase a variable with the current 'bump' value.
     void     claDecayActivity ();                      // Decay all clauses with the specified factor. Implemented by increasing the 'bump' value instead.
     void     claBumpActivity  (Clause& c);             // Increase a clause with the current 'bump' value.
 
@@ -300,13 +300,12 @@ inline CRef Solver::reason(Var x) const { return vardata[x].reason; }
 inline int  Solver::level (Var x) const { return vardata[x].level; }
 
 inline void Solver::insertVarOrder(Var x) {
-    // converting var to litint: var << 1 + 0 or 1 depending on sign. << 1 mults by 2 (== var + var)
     if (decision[x]) {
-        const int neg = x << 1;
+        Lit neg = mkLit(x, false);
         if (!order_heap.inHeap(neg)) {
             order_heap.insert(neg);
         }
-        const int pos = neg | 1;
+        Lit pos = mkLit(x, true);
         if (!order_heap.inHeap(pos)) {
             order_heap.insert(pos);
         }
@@ -314,12 +313,14 @@ inline void Solver::insertVarOrder(Var x) {
 }
 
 inline void Solver::litDecayActivity() { lit_inc *= (1 / lit_decay); }
-inline void Solver::litBumpActivity(int l) { litBumpActivity(l, lit_inc); }
-inline void Solver::litBumpActivity(int l, double inc) {
+inline void Solver::litBumpActivity(Lit l) { litBumpActivity(l, lit_inc); }
+inline void Solver::litBumpActivity(Lit l, double inc) {
     if ( (activity[l] += inc) > 1e100 ) {
         // Rescale:
-        for (int i = 0; i < nVars() << 1; i++) {
-            activity[i] *= 1e-100;
+        for (int i = 0; i < nVars(); i++) {
+        // TODO: mkLit
+            activity[mkLit(i, false)] *= 1e-100;
+            activity[mkLit(i, true)] *= 1e-100;
         }
         lit_inc *= 1e-100; }
 
