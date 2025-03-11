@@ -122,14 +122,13 @@ Var Solver::newVar(lbool upol, bool dvar)
     }else
         v = next_var++;
 
-    Lit neg = mkLit(v, false);
-    Lit pos = mkLit(v, true);
-    watches  .init(neg);
-    watches  .init(pos);
+    watches  .init(mkLit(v, false));
+    watches  .init(mkLit(v, true ));
     assigns  .insert(v, l_Undef);
     vardata  .insert(v, mkVarData(CRef_Undef, 0));
-    activity .insert(neg, rnd_init_act ? drand(random_seed) * 0.00001 : 0);
-    activity .insert(pos, rnd_init_act ? drand(random_seed) * 0.00001 : 0);
+    //TODO: mkLit
+    activity .insert(mkLit(v, false), rnd_init_act ? drand(random_seed) * 0.00001 : 0);
+    activity .insert(mkLit(v, true), rnd_init_act ? drand(random_seed) * 0.00001 : 0);
     seen     .insert(v, 0);
     decision .reserve(v);
     trail    .capacity(v+1);
@@ -614,9 +613,9 @@ void Solver::rebuildOrderHeap()
     vec<Lit> vs;
     for (Var v = 0; v < nVars(); v++)
         if (decision[v] && value(v) == l_Undef) {
-            const int l = v << 1;
-            vs.push( { l });
-            vs.push( { l | 1 } );
+            // TODO: mkLit
+            vs.push(mkLit(v, false));
+            vs.push(mkLit(v, true));
         }
     order_heap.build(vs);
 }
