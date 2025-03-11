@@ -82,7 +82,7 @@ Solver::Solver() :
   , dec_vars(0), num_clauses(0), num_learnts(0), clauses_literals(0), learnts_literals(0), max_literals(0), tot_literals(0)
 
   , watches            (WatcherDeleted(ca))
-  , order_heap         (LitOrderLt(activity))
+  , order_heap         (LitAsIntOrderLt(activity))
   , ok                 (true)
   , cla_inc            (1)
   , lit_inc            (1)
@@ -126,9 +126,15 @@ Var Solver::newVar(lbool upol, bool dvar)
     watches  .init(mkLit(v, true ));
     assigns  .insert(v, l_Undef);
     vardata  .insert(v, mkVarData(CRef_Undef, 0));
-    //TODO: mkLit
-    activity .insert(mkLit(v, false), rnd_init_act ? drand(random_seed) * 0.00001 : 0);
-    activity .insert(mkLit(v, true), rnd_init_act ? drand(random_seed) * 0.00001 : 0);
+
+    // Order doesn't matter if we assume there are no newVar() calls after the first call to litBumpActivity. If
+    // there are, then this has to be done in the same way as IntMap handles it.
+    // This assumption is safe to make. newVar() called with default params in Dimacs.h:readClause, and litBumpActivity
+    // not called until search begins. Search has to happen after readClause calls finish, so this is fine. More
+    // efficient this way
+    activity.push(rnd_init_act ? drand(random_seed) * 0.00001 : 0);
+    activity.push(rnd_init_act ? drand(random_seed) * 0.00001 : 0);
+
     seen     .insert(v, 0);
     decision .reserve(v);
     trail    .capacity(v+1);
@@ -247,7 +253,7 @@ Lit Solver::pickBranchLit()
 
     // Random decision:
     if (drand(random_seed) < random_var_freq && !order_heap.empty()){
-        next = order_heap[irand(random_seed,order_heap.size())];
+        next = toLit(order_heap[irand(random_seed,order_heap.size())]);
         if (value(next) == l_Undef && decision[var(next)])
             rnd_decisions++; }
 
@@ -257,7 +263,7 @@ Lit Solver::pickBranchLit()
             next = lit_Undef;
             break;
         }else
-            next = order_heap.removeMin();
+            next = toLit(order_heap.removeMin());
 
     return next;
     // Choose polarity based on different polarity modes (global or per-variable):
@@ -302,7 +308,7 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel)
             Lit q = c[j];
 
             if (!seen[var(q)] && level(var(q)) > 0){
-                litBumpActivity(q);
+                litBumpActivity(q.x);
                 seen[var(q)] = 1;
                 if (level(var(q)) >= decisionLevel())
                     pathC++;
@@ -608,14 +614,13 @@ void Solver::removeSatisfied(vec<CRef>& cs)
 }
 
 
-void Solver::rebuildOrderHeap()
-{
-    vec<Lit> vs;
+void Solver::rebuildOrderHeap() {
+    vec<int> vs;
     for (Var v = 0; v < nVars(); v++)
         if (decision[v] && value(v) == l_Undef) {
-            // TODO: mkLit
-            vs.push(mkLit(v, false));
-            vs.push(mkLit(v, true));
+            int l = v << 1;
+            vs.push(l);
+            vs.push(l | 1);
         }
     order_heap.build(vs);
 }
