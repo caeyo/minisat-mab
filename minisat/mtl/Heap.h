@@ -84,6 +84,9 @@ class Heap {
     void decrease  (K k) { assert(inHeap(k)); percolateUp  (indices[k]); }
     void increase  (K k) { assert(inHeap(k)); percolateDown(indices[k]); }
 
+    K& getRef(K k) {
+        return heap[indices[k]];
+    }
 
     // Safe variant of insert/decrease/increase:
     void update(K k)

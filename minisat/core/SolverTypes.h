@@ -78,6 +78,7 @@ const Lit lit_Undef = { -2 };  // }- Useful special constants.
 const Lit lit_Error = { -1 };  // }
 
 struct MkIndexLit { vec<Lit>::Size operator()(Lit l) const { return vec<Lit>::Size(l.x); } };
+struct MkIndexLitBranch { vec<Lit>::Size operator()(Lit l) const { return vec<Lit>::Size(l.x >> 1); } };
 
 template<class T> class VMap : public IntMap<Var, T>{};
 template<class T> class LMap : public IntMap<Lit, T, MkIndexLit>{};

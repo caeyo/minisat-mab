@@ -122,12 +122,15 @@ Var Solver::newVar(lbool upol, bool dvar)
     }else
         v = next_var++;
 
-    watches  .init(mkLit(v, false));
-    watches  .init(mkLit(v, true ));
+    Lit neg = mkLit(v, false);
+    Lit pos = mkLit(v, true);
+    watches  .init(neg);
+    watches  .init(pos);
     assigns  .insert(v, l_Undef);
     vardata  .insert(v, mkVarData(CRef_Undef, 0));
-    activity .insert(mkLit(v, false), rnd_init_act ? drand(random_seed) * 0.00001 : 0);
-    activity .insert(mkLit(v, true), rnd_init_act ? drand(random_seed) * 0.00001 : 0);
+    activity .insert(neg, rnd_init_act ? drand(random_seed) * 0.00001 : 0);
+    activity .insert(pos, rnd_init_act ? drand(random_seed) * 0.00001 : 0);
+    insertLitOrder(neg);
     seen     .insert(v, 0);
     decision .reserve(v);
     trail    .capacity(v+1);
@@ -227,9 +230,10 @@ bool Solver::satisfied(const Clause& c) const {
 void Solver::cancelUntil(int level) {
     if (decisionLevel() > level){
         for (int c = trail.size()-1; c >= trail_lim[level]; c--){
-            Var      x  = var(trail[c]);
-            assigns [x] = l_Undef;
-            insertVarOrder(x); }
+            Lit l = trail[c];
+            assigns[var(l)] = l_Undef;
+            insertLitOrder(l);
+        }
         qhead = trail_lim[level];
         trail.shrink(trail.size() - trail_lim[level]);
         trail_lim.shrink(trail_lim.size() - level);
@@ -609,11 +613,12 @@ void Solver::removeSatisfied(vec<CRef>& cs)
 void Solver::rebuildOrderHeap()
 {
     vec<Lit> vs;
-    for (Var v = 0; v < nVars(); v++)
+    for (Var v = 0; v < nVars(); v++) {
         if (decision[v] && value(v) == l_Undef) {
-            vs.push(mkLit(v, false));
-            vs.push(mkLit(v, true));
+            Lit neg = mkLit(v, false);
+            vs.push(activity[neg] >= activity[~neg] ? neg : ~neg);
         }
+    }
     order_heap.build(vs);
 }
 

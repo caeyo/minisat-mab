@@ -198,7 +198,7 @@ protected:
     OccLists<Lit, vec<Watcher>, WatcherDeleted, MkIndexLit>
                         watches;          // 'watches[lit]' is a list of constraints watching 'lit' (will go there if literal becomes true).
 
-    Heap<Lit,LitOrderLt,MkIndexLit> order_heap;       // A priority queue of literals ordered with respect to the literal activity.
+    Heap<Lit,LitOrderLt,MkIndexLitBranch> order_heap;       // A priority queue of literals ordered with respect to the literal activity.
 
     bool                ok;               // If FALSE, the constraints are already unsatisfiable. No part of the solver state may be used!
     double              cla_inc;          // Amount to bump next clause with.
@@ -234,7 +234,7 @@ protected:
 
     // Main internal methods:
     //
-    void     insertVarOrder   (Var x);                                                 // Insert a variable in the decision order priority queue.
+    void     insertLitOrder   (Lit x);                                                 // Insert a variable in the decision order priority queue.
     Lit      pickBranchLit    ();                                                      // Return the next decision variable.
     void     newDecisionLevel ();                                                      // Begins a new decision level.
     void     uncheckedEnqueue (Lit p, CRef from = CRef_Undef);                         // Enqueue a literal. Assumes value of literal is undefined.
@@ -299,16 +299,11 @@ protected:
 inline CRef Solver::reason(Var x) const { return vardata[x].reason; }
 inline int  Solver::level (Var x) const { return vardata[x].level; }
 
-inline void Solver::insertVarOrder(Var x) {
-    if (decision[x]) {
-        Lit neg = mkLit(x, false);
-        if (!order_heap.inHeap(neg)) {
-            order_heap.insert(neg);
-        }
-        Lit pos = mkLit(x, true);
-        if (!order_heap.inHeap(pos)) {
-            order_heap.insert(pos);
-        }
+inline void Solver::insertLitOrder(Lit x) {
+    if (!order_heap.inHeap(x)) {
+        // Solver statistics are worse if we do not do this comparison - we can't assume what's being inserted is
+        // always the biggest.
+        order_heap.insert(activity[x] >= activity[~x] ? x : ~x);
     }
 }
 
@@ -317,15 +312,23 @@ inline void Solver::litBumpActivity(Lit l) { litBumpActivity(l, lit_inc); }
 inline void Solver::litBumpActivity(Lit l, double inc) {
     if ( (activity[l] += inc) > 1e100 ) {
         // Rescale:
-        for (int i = 0; i < nVars(); i++) {
-            activity[mkLit(i, false)] *= 1e-100;
-            activity[mkLit(i, true)] *= 1e-100;
+        double *beg = activity.begin();
+        for (double *end = activity.end(); beg != end; ++beg) {
+            *beg *= 1e-100;
         }
         lit_inc *= 1e-100; }
 
     // Update order_heap with respect to new activity:
-    if (order_heap.inHeap(l))
-        order_heap.decrease(l); }
+    if (order_heap.inHeap(l)) {
+        Lit& inHeap = order_heap.getRef(l);
+        if (inHeap == l) {
+            order_heap.decrease(l);
+        } else if (activity[l] > activity[~l]) {
+            inHeap.x ^= 1;
+            order_heap.decrease(l);
+        }
+    }
+}
 
 inline void Solver::claDecayActivity() { cla_inc *= (1 / clause_decay); }
 inline void Solver::claBumpActivity (Clause& c) {
@@ -371,7 +374,6 @@ inline void     Solver::setDecisionVar(Var v, bool b)
     else if (!b &&  decision[v]) dec_vars--;
 
     decision[v] = b;
-    insertVarOrder(v);
 }
 inline void     Solver::setConfBudget(int64_t x){ conflict_budget    = conflicts    + x; }
 inline void     Solver::setPropBudget(int64_t x){ propagation_budget = propagations + x; }
