@@ -318,7 +318,6 @@ inline void Solver::litBumpActivity(Lit l, double inc) {
     if ( (activity[l] += inc) > 1e100 ) {
         // Rescale:
         for (int i = 0; i < nVars(); i++) {
-        // TODO: mkLit
             activity[mkLit(i, false)] *= 1e-100;
             activity[mkLit(i, true)] *= 1e-100;
         }

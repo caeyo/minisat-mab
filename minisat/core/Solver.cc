@@ -126,7 +126,6 @@ Var Solver::newVar(lbool upol, bool dvar)
     watches  .init(mkLit(v, true ));
     assigns  .insert(v, l_Undef);
     vardata  .insert(v, mkVarData(CRef_Undef, 0));
-    //TODO: mkLit
     activity .insert(mkLit(v, false), rnd_init_act ? drand(random_seed) * 0.00001 : 0);
     activity .insert(mkLit(v, true), rnd_init_act ? drand(random_seed) * 0.00001 : 0);
     seen     .insert(v, 0);
@@ -260,7 +259,6 @@ Lit Solver::pickBranchLit()
             next = order_heap.removeMin();
 
     return next;
-    // Choose polarity based on different polarity modes (global or per-variable):
 }
 
 
@@ -613,7 +611,6 @@ void Solver::rebuildOrderHeap()
     vec<Lit> vs;
     for (Var v = 0; v < nVars(); v++)
         if (decision[v] && value(v) == l_Undef) {
-            // TODO: mkLit
             vs.push(mkLit(v, false));
             vs.push(mkLit(v, true));
         }
@@ -1040,7 +1037,6 @@ void Solver::relocAll(ClauseAllocator& to)
     watches.cleanAll();
     for (int v = 0; v < nVars(); v++)
         for (int s = 0; s < 2; s++){
-            // TODO: show as example of indexing like this
             Lit p = mkLit(v, s);
             vec<Watcher>& ws = watches[p];
             for (int j = 0; j < ws.size(); j++)
