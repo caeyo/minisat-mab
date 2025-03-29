@@ -130,12 +130,12 @@ Var Solver::newVar(lbool upol, bool dvar)
     vardata  .insert(v, mkVarData(CRef_Undef, 0));
     activity .insert(neg, rnd_init_act ? drand(random_seed) * 0.00001 : 0);
     activity .insert(pos, rnd_init_act ? drand(random_seed) * 0.00001 : 0);
-    insertLitOrder(neg);
     seen     .insert(v, 0);
     user_pol .insert(v, upol);
     decision .reserve(v);
     trail    .capacity(v+1);
     setDecisionVar(v, dvar);
+    insertLitOrder(neg);
     return v;
 }
 
