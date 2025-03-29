@@ -258,8 +258,7 @@ Lit Solver::pickBranchLit()
     // Activity based decision:
     while (next == lit_Undef || value(next) != l_Undef || !decision[var(next)])
         if (order_heap.empty()){
-            next = lit_Undef;
-            break;
+            return lit_Undef;
         }else
             next = order_heap.removeMin();
 
