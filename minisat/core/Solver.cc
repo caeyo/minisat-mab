@@ -132,6 +132,7 @@ Var Solver::newVar(lbool upol, bool dvar)
     activity .insert(pos, rnd_init_act ? drand(random_seed) * 0.00001 : 0);
     insertLitOrder(neg);
     seen     .insert(v, 0);
+    user_pol .insert(v, upol);
     decision .reserve(v);
     trail    .capacity(v+1);
     setDecisionVar(v, dvar);
@@ -262,6 +263,11 @@ Lit Solver::pickBranchLit()
         }else
             next = order_heap.removeMin();
 
+    if (user_pol[var(next)] != l_Undef) {
+        // If user_pol matches sign of next, return as is, otherwise return it flipped
+        bool s = sign(next); const lbool pol = user_pol[var(next)];
+        return (pol == l_True && s) || (pol == l_False && !s) ? next : ~next;
+    }
     return next;
 }
 

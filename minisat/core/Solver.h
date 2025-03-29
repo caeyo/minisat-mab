@@ -86,7 +86,8 @@ public:
     void    toDimacs     (const char* file, Lit p, Lit q, Lit r);
     
     // Variable mode:
-    // 
+    //
+    void    setPolarity    (Var v, lbool b); // Declare which polarity the decision heuristic should use for a variable. Requires mode 'polarity_user'.
     void    setDecisionVar (Var v, bool b);  // Declare if a variable should be eligible for selection in the decision heuristic, and insert into the order_heap.
 
     // Read state:
@@ -193,6 +194,7 @@ protected:
 
     LMap<double>        activity;         // A heuristic measurement of the activity of a literal.
     VMap<lbool>         assigns;          // The current assignments.
+    VMap<lbool>         user_pol;         // The users preferred polarity of each variable.
     VMap<char>          decision;         // Declares if a variable is eligible for selection in the decision heuristic.
     VMap<VarData>       vardata;          // Stores reason and level for each variable.
     OccLists<Lit, vec<Watcher>, WatcherDeleted, MkIndexLit>
@@ -300,7 +302,7 @@ inline CRef Solver::reason(Var x) const { return vardata[x].reason; }
 inline int  Solver::level (Var x) const { return vardata[x].level; }
 
 inline void Solver::insertLitOrder(Lit x) {
-    if (!order_heap.inHeap(x)) {
+    if (!order_heap.inHeap(x) && decision[var(x)]) {
         // Solver statistics are worse if we do not do this comparison - we can't assume what's being inserted is
         // always the biggest.
         order_heap.insert(activity[x] >= activity[~x] ? x : ~x);
@@ -368,6 +370,7 @@ inline int      Solver::nLearnts      ()      const   { return num_learnts; }
 inline int      Solver::nVars         ()      const   { return next_var; }
 // TODO: nFreeVars() is not quite correct, try to calculate right instead of adapting it like below:
 inline int      Solver::nFreeVars     ()      const   { return (int)dec_vars - (trail_lim.size() == 0 ? trail.size() : trail_lim[0]); }
+inline void     Solver::setPolarity   (Var v, lbool b){ user_pol[v] = b; }
 inline void     Solver::setDecisionVar(Var v, bool b)
 { 
     if      ( b && !decision[v]) dec_vars++;
