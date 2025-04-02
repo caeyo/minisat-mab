@@ -250,21 +250,24 @@ Lit Solver::pickBranchLit()
     Lit next = lit_Undef;
 
     // Random decision:
-    if (drand(random_seed) < random_var_freq && !order_heap.empty()){
-        next = order_heap[irand(random_seed,order_heap.size())];
+    if (drand(random_seed) < random_var_freq && !order_heap.empty()) {
+        next = order_heap[irand(random_seed, order_heap.size())];
+        if (irand(random_seed, 2))
+            next.x ^= 1;
         if (value(next) == l_Undef && decision[var(next)])
-            rnd_decisions++; }
+            rnd_decisions++;
+    }
 
     // Activity based decision:
-    while (next == lit_Undef || value(next) != l_Undef || !decision[var(next)])
-        if (order_heap.empty()){
+    while (next == lit_Undef || value(next) != l_Undef || !decision[var(next)]) {
+        if (order_heap.empty())
             return lit_Undef;
-        }else
-            next = order_heap.removeMin();
+        next = order_heap.removeMin();
+    }
 
     if (user_pol[var(next)] != l_Undef) {
         // If user_pol matches sign of next, return as is, otherwise return it flipped
-        bool s = sign(next); const lbool pol = user_pol[var(next)];
+        const bool s = sign(next); const lbool pol = user_pol[var(next)];
         return (pol == l_True && s) || (pol == l_False && !s) ? next : ~next;
     }
     return next;
