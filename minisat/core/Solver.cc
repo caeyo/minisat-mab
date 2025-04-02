@@ -252,10 +252,11 @@ Lit Solver::pickBranchLit()
     // Random decision:
     if (drand(random_seed) < random_var_freq && !order_heap.empty()) {
         next = order_heap[irand(random_seed, order_heap.size())];
-        if (irand(random_seed, 2))
-            next.x ^= 1;
-        if (value(next) == l_Undef && decision[var(next)])
+        if (value(next) == l_Undef && decision[var(next)]) {
+            if (irand(random_seed, 2))
+                next.x ^= 1;
             rnd_decisions++;
+        }
     }
 
     // Activity based decision:
