@@ -130,6 +130,7 @@ Var Solver::newVar(lbool upol, bool dvar)
     vardata  .insert(v, mkVarData(CRef_Undef, 0));
     activity .insert(neg, rnd_init_act ? drand(random_seed) * 0.00001 : 0);
     activity .insert(pos, rnd_init_act ? drand(random_seed) * 0.00001 : 0);
+    greater_pol.push(true);
     seen     .insert(v, 0);
     user_pol .insert(v, upol);
     decision .reserve(v);
@@ -624,8 +625,7 @@ void Solver::rebuildOrderHeap()
     vec<Lit> vs;
     for (Var v = 0; v < nVars(); v++) {
         if (decision[v] && value(v) == l_Undef) {
-            Lit neg = mkLit(v, false);
-            vs.push(activity[neg] >= activity[~neg] ? neg : ~neg);
+            vs.push(mkLit(v, greater_pol[v]));
         }
     }
     order_heap.build(vs);

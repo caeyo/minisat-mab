@@ -193,6 +193,7 @@ protected:
     vec<Lit>            assumptions;      // Current set of assumptions provided to solve by the user.
 
     LMap<double>        activity;         // A heuristic measurement of the activity of a literal.
+    vec<bool>           greater_pol;
     VMap<lbool>         assigns;          // The current assignments.
     VMap<lbool>         user_pol;         // The users preferred polarity of each variable.
     VMap<char>          decision;         // Declares if a variable is eligible for selection in the decision heuristic.
@@ -305,7 +306,8 @@ inline void Solver::insertLitOrder(Lit x) {
     if (!order_heap.inHeap(x) && decision[var(x)]) {
         // Solver statistics are worse if we do not do this comparison - we can't assume what's being inserted is
         // always the biggest.
-        order_heap.insert(activity[x] >= activity[~x] ? x : ~x);
+        Var v = var(x);
+        order_heap.insert(mkLit(v, greater_pol[v]));
     }
 }
 
@@ -320,15 +322,15 @@ inline void Solver::litBumpActivity(Lit l, double inc) {
         }
         lit_inc *= 1e-100; }
 
+    const bool shouldFlip = (activity[l] > activity[~l] && sign(l) != greater_pol[var(l)]) || activity[l] == activity[~l];
+    if (shouldFlip)
+        greater_pol[var(l)] ^= 1;
+
     // Update order_heap with respect to new activity:
     if (order_heap.inHeap(l)) {
-        Lit& inHeap = order_heap.getRef(l);
-        if (inHeap == l) {
-            order_heap.decrease(l);
-        } else if (activity[l] > activity[~l]) {
-            inHeap.x ^= 1;
-            order_heap.decrease(l);
-        }
+        if (shouldFlip)
+            order_heap.getRef(l).x ^= 1;
+        order_heap.decrease(l);
     }
 }
 
