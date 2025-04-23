@@ -127,14 +127,12 @@ public:
     // Mode of operation:
     //
     int       verbosity;
-    double    var_decay;
+    double    lit_decay;
     double    clause_decay;
     double    random_var_freq;
     double    random_seed;
     bool      luby_restart;
     int       ccmin_mode;         // Controls conflict clause minimization (0=none, 1=basic, 2=deep).
-    int       phase_saving;       // Controls the level of phase saving (0=none, 1=limited, 2=full).
-    bool      rnd_pol;            // Use random polarities for branching heuristics.
     bool      rnd_init_act;       // Initialize variable activities with a small random value.
     double    garbage_frac;       // The fraction of wasted memory allowed before a garbage collection is triggered.
     int       min_learnts_lim;    // Minimum number to set the learnts limit to.
@@ -175,9 +173,10 @@ protected:
     };
 
     struct VarOrderLt {
-        const IntMap<Var, double>&  activity;
-        bool operator () (Var x, Var y) const { return activity[x] > activity[y]; }
-        VarOrderLt(const IntMap<Var, double>&  act) : activity(act) { }
+        const IntMap<Lit, double, MkIndexLit>&  activity;
+        const VMap<char>& greater_pol;
+        bool operator () (Var x, Var y) const { return activity[mkLit(x, greater_pol[x])] > activity[mkLit(y, greater_pol[y])]; }
+        VarOrderLt(const IntMap<Lit, double, MkIndexLit>&  act, const VMap<char>& pol) : activity(act), greater_pol(pol) { }
     };
 
     struct ShrinkStackElem {
@@ -194,7 +193,7 @@ protected:
     vec<int>            trail_lim;        // Separator indices for different decision levels in 'trail'.
     vec<Lit>            assumptions;      // Current set of assumptions provided to solve by the user.
 
-    VMap<double>        activity;         // A heuristic measurement of the activity of a variable.
+    LMap<double>        activity;         // A heuristic measurement of the activity of a variable.
     VMap<lbool>         assigns;          // The current assignments.
     VMap<char>          polarity;         // The preferred polarity of each variable.
     VMap<lbool>         user_pol;         // The users preferred polarity of each variable.
@@ -207,7 +206,7 @@ protected:
 
     bool                ok;               // If FALSE, the constraints are already unsatisfiable. No part of the solver state may be used!
     double              cla_inc;          // Amount to bump next clause with.
-    double              var_inc;          // Amount to bump next variable with.
+    double              lit_inc;          // Amount to bump next variable with.
     int                 qhead;            // Head of queue (as index into the trail -- no more explicit propagation queue in MiniSat).
     int                 simpDB_assigns;   // Number of top-level assignments since last execution of 'simplify()'.
     int64_t             simpDB_props;     // Remaining number of propagations that must be made before next execution of 'simplify()'.
@@ -257,9 +256,9 @@ protected:
 
     // Maintaining Variable/Clause activity:
     //
-    void     varDecayActivity ();                      // Decay all variables with the specified factor. Implemented by increasing the 'bump' value instead.
-    void     varBumpActivity  (Var v, double inc);     // Increase a variable with the current 'bump' value.
-    void     varBumpActivity  (Var v);                 // Increase a variable with the current 'bump' value.
+    void     litDecayActivity ();                      // Decay all variables with the specified factor. Implemented by increasing the 'bump' value instead.
+    void     litBumpActivity  (Lit l, double inc);     // Increase a variable with the current 'bump' value.
+    void     litBumpActivity  (Lit l);                 // Increase a variable with the current 'bump' value.
     void     claDecayActivity ();                      // Decay all clauses with the specified factor. Implemented by increasing the 'bump' value instead.
     void     claBumpActivity  (Clause& c);             // Increase a clause with the current 'bump' value.
 
@@ -307,14 +306,21 @@ inline int  Solver::level (Var x) const { return vardata[x].level; }
 inline void Solver::insertVarOrder(Var x) {
     if (!order_heap.inHeap(x) && decision[x]) order_heap.insert(x); }
 
-inline void Solver::varDecayActivity() { var_inc *= (1 / var_decay); }
-inline void Solver::varBumpActivity(Var v) { varBumpActivity(v, var_inc); }
-inline void Solver::varBumpActivity(Var v, double inc) {
-    if ( (activity[v] += inc) > 1e100 ) {
+inline void Solver::litDecayActivity() { lit_inc *= (1 / lit_decay); }
+inline void Solver::litBumpActivity(Lit l) { litBumpActivity(l, lit_inc); }
+inline void Solver::litBumpActivity(Lit l, double inc) {
+    if ( (activity[l] += inc) > 1e100 ) {
         // Rescale:
-        for (int i = 0; i < nVars(); i++)
-            activity[i] *= 1e-100;
-        var_inc *= 1e-100; }
+        double *beg = activity.begin();
+        for (double *end = activity.end(); beg != end; ++beg) {
+            *beg *= 1e-100;
+        }
+        lit_inc *= 1e-100; }
+
+    const Var v = var(l);
+    const Lit n = ~l;
+    if ((activity[l] > activity[n] && sign(l) != polarity[v]) || activity[l] == activity[n])
+        polarity[v] ^= 1;
 
     // Update order_heap with respect to new activity:
     if (order_heap.inHeap(v))

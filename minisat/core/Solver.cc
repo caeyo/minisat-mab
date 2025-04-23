@@ -33,12 +33,11 @@ using namespace Minisat;
 
 static const char* _cat = "CORE";
 
-static DoubleOption  opt_var_decay         (_cat, "var-decay",   "The variable activity decay factor",            0.95,     DoubleRange(0, false, 1, false));
+static DoubleOption  opt_lit_decay         (_cat, "lit-decay",   "The variable activity decay factor",            0.95,     DoubleRange(0, false, 1, false));
 static DoubleOption  opt_clause_decay      (_cat, "cla-decay",   "The clause activity decay factor",              0.999,    DoubleRange(0, false, 1, false));
 static DoubleOption  opt_random_var_freq   (_cat, "rnd-freq",    "The frequency with which the decision heuristic tries to choose a random variable", 0, DoubleRange(0, true, 1, true));
 static DoubleOption  opt_random_seed       (_cat, "rnd-seed",    "Used by the random variable selection",         91648253, DoubleRange(0, false, HUGE_VAL, false));
 static IntOption     opt_ccmin_mode        (_cat, "ccmin-mode",  "Controls conflict clause minimization (0=none, 1=basic, 2=deep)", 2, IntRange(0, 2));
-static IntOption     opt_phase_saving      (_cat, "phase-saving", "Controls the level of phase saving (0=none, 1=limited, 2=full)", 2, IntRange(0, 2));
 static BoolOption    opt_rnd_init_act      (_cat, "rnd-init",    "Randomize the initial activity", false);
 static BoolOption    opt_luby_restart      (_cat, "luby",        "Use the Luby restart sequence", true);
 static IntOption     opt_restart_first     (_cat, "rfirst",      "The base restart interval", 100, IntRange(1, INT32_MAX));
@@ -56,14 +55,12 @@ Solver::Solver() :
     // Parameters (user settable):
     //
     verbosity        (0)
-  , var_decay        (opt_var_decay)
+  , lit_decay        (opt_lit_decay)
   , clause_decay     (opt_clause_decay)
   , random_var_freq  (opt_random_var_freq)
   , random_seed      (opt_random_seed)
   , luby_restart     (opt_luby_restart)
   , ccmin_mode       (opt_ccmin_mode)
-  , phase_saving     (opt_phase_saving)
-  , rnd_pol          (false)
   , rnd_init_act     (opt_rnd_init_act)
   , garbage_frac     (opt_garbage_frac)
   , min_learnts_lim  (opt_min_learnts_lim)
@@ -85,10 +82,10 @@ Solver::Solver() :
   , dec_vars(0), num_clauses(0), num_learnts(0), clauses_literals(0), learnts_literals(0), max_literals(0), tot_literals(0)
 
   , watches            (WatcherDeleted(ca))
-  , order_heap         (VarOrderLt(activity))
+  , order_heap         (VarOrderLt(activity, polarity))
   , ok                 (true)
   , cla_inc            (1)
-  , var_inc            (1)
+  , lit_inc            (1)
   , qhead              (0)
   , simpDB_assigns     (-1)
   , simpDB_props       (0)
@@ -129,7 +126,8 @@ Var Solver::newVar(lbool upol, bool dvar)
     watches  .init(mkLit(v, true ));
     assigns  .insert(v, l_Undef);
     vardata  .insert(v, mkVarData(CRef_Undef, 0));
-    activity .insert(v, rnd_init_act ? drand(random_seed) * 0.00001 : 0);
+    activity .insert(mkLit(v, false), rnd_init_act ? drand(random_seed) * 0.00001 : 0);
+    activity .insert(mkLit(v, true), rnd_init_act ? drand(random_seed) * 0.00001 : 0);
     seen     .insert(v, 0);
     polarity .insert(v, true);
     user_pol .insert(v, upol);
@@ -233,8 +231,6 @@ void Solver::cancelUntil(int level) {
         for (int c = trail.size()-1; c >= trail_lim[level]; c--){
             Var      x  = var(trail[c]);
             assigns [x] = l_Undef;
-            if (phase_saving > 1 || (phase_saving == 1 && c > trail_lim.last()))
-                polarity[x] = sign(trail[c]);
             insertVarOrder(x); }
         qhead = trail_lim[level];
         trail.shrink(trail.size() - trail_lim[level]);
@@ -249,12 +245,15 @@ void Solver::cancelUntil(int level) {
 Lit Solver::pickBranchLit()
 {
     Var next = var_Undef;
-
+    bool wasRand = false;
     // Random decision:
     if (drand(random_seed) < random_var_freq && !order_heap.empty()){
         next = order_heap[irand(random_seed,order_heap.size())];
-        if (value(next) == l_Undef && decision[next])
-            rnd_decisions++; }
+        if (value(next) == l_Undef && decision[next]) {
+            wasRand = true;
+            rnd_decisions++;
+        }
+    }
 
     // Activity based decision:
     while (next == var_Undef || value(next) != l_Undef || !decision[next])
@@ -269,8 +268,12 @@ Lit Solver::pickBranchLit()
         return lit_Undef;
     else if (user_pol[next] != l_Undef)
         return mkLit(next, user_pol[next] == l_True);
-    else if (rnd_pol)
-        return mkLit(next, drand(random_seed) < 0.5);
+    else if (wasRand) {
+        Lit r = mkLit(next, polarity[next]);
+        if (irand(random_seed, 2))
+            r.x ^= 1;
+        return r;
+    }
     else
         return mkLit(next, polarity[next]);
 }
@@ -314,7 +317,7 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel)
             Lit q = c[j];
 
             if (!seen[var(q)] && level(var(q)) > 0){
-                varBumpActivity(var(q));
+                litBumpActivity(q);
                 seen[var(q)] = 1;
                 if (level(var(q)) >= decisionLevel())
                     pathC++;
@@ -728,7 +731,7 @@ lbool Solver::search(int nof_conflicts)
                 uncheckedEnqueue(learnt_clause[0], cr);
             }
 
-            varDecayActivity();
+            litDecayActivity();
             claDecayActivity();
 
             if (--learntsize_adjust_cnt == 0){
