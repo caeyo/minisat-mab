@@ -268,12 +268,8 @@ Lit Solver::pickBranchLit()
         return lit_Undef;
     else if (user_pol[next] != l_Undef)
         return mkLit(next, user_pol[next] == l_True);
-    else if (wasRand) {
-        Lit r = mkLit(next, polarity[next]);
-        if (irand(random_seed, 2))
-            r.x ^= 1;
-        return r;
-    }
+    else if (wasRand)
+        return mkLit(next, drand(random_seed) < 0.5);
     else
         return mkLit(next, polarity[next]);
 }
