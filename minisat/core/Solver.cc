@@ -44,6 +44,7 @@ static IntOption     opt_restart_first     (_cat, "rfirst",      "The base resta
 static DoubleOption  opt_restart_inc       (_cat, "rinc",        "Restart interval increase factor", 2, DoubleRange(1, false, HUGE_VAL, false));
 static DoubleOption  opt_garbage_frac      (_cat, "gc-frac",     "The fraction of wasted memory allowed before a garbage collection is triggered",  0.20, DoubleRange(0, false, HUGE_VAL, false));
 static IntOption     opt_min_learnts_lim   (_cat, "min-learnts", "Minimum learnt clause limit",  0, IntRange(0, INT32_MAX));
+static DoubleOption  opt_lit_inc           (_cat, "lit-inc",     "The initial increment for literal activity",  1, DoubleRange(0, false, HUGE_VAL, false));
 
 
 //=================================================================================================
@@ -85,7 +86,7 @@ Solver::Solver() :
   , order_heap         (VarOrderLt(activity, polarity))
   , ok                 (true)
   , cla_inc            (1)
-  , lit_inc            (1)
+  , lit_inc            (opt_lit_inc)
   , qhead              (0)
   , simpDB_assigns     (-1)
   , simpDB_props       (0)
