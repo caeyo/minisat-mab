@@ -45,6 +45,10 @@ static DoubleOption  opt_restart_inc       (_cat, "rinc",        "Restart interv
 static DoubleOption  opt_garbage_frac      (_cat, "gc-frac",     "The fraction of wasted memory allowed before a garbage collection is triggered",  0.20, DoubleRange(0, false, HUGE_VAL, false));
 static IntOption     opt_min_learnts_lim   (_cat, "min-learnts", "Minimum learnt clause limit",  0, IntRange(0, INT32_MAX));
 static DoubleOption  opt_lit_inc           (_cat, "lit-inc",     "The initial increment for literal activity",  1, DoubleRange(0, false, HUGE_VAL, false));
+static DoubleOption  opt_twin_updates_beta (_cat, "twin-upd-beta",    "Twin updates beta",  1e-4, DoubleRange(0, false, 1, false));
+static DoubleOption  opt_tiebreak_threshold(_cat, "tiebreak-thres",     "Tiebreak threshold",  0.007, DoubleRange(0, false, 1, false));
+static IntOption     opt_flip_threshold    (_cat, "flip-thres", "Flip threshold",  32, IntRange(0, INT32_MAX));
+static DoubleOption  opt_flip_probability  (_cat, "flip-prob",     "Flip probability",  0.07, DoubleRange(0, false, 1, false));
 
 
 //=================================================================================================
@@ -67,6 +71,10 @@ Solver::Solver() :
   , min_learnts_lim  (opt_min_learnts_lim)
   , restart_first    (opt_restart_first)
   , restart_inc      (opt_restart_inc)
+  , twin_updates_beta(opt_twin_updates_beta)
+  , tiebreak_threshold(opt_tiebreak_threshold)
+  , flip_threshold    (opt_flip_threshold)
+  , flip_probability  (opt_flip_probability)
 
     // Parameters (the rest):
     //
@@ -271,8 +279,15 @@ Lit Solver::pickBranchLit()
         return mkLit(next, user_pol[next] == l_True);
     else if (wasRand)
         return mkLit(next, drand(random_seed) < 0.5);
-    else
-        return mkLit(next, polarity[next]);
+    else {
+        const Lit l = mkLit(next, polarity[next]);
+        const Lit n = ~l;
+        if (activity[n] >= activity[l] * (1 - tiebreak_threshold))
+            return drand(random_seed) < 0.5 ? l : n;
+        if (activity[l] / activity[n] >= flip_threshold && drand(random_seed) < flip_probability)
+            return n;
+        return l;
+    }
 }
 
 

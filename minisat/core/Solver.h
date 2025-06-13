@@ -136,6 +136,10 @@ public:
     bool      rnd_init_act;       // Initialize variable activities with a small random value.
     double    garbage_frac;       // The fraction of wasted memory allowed before a garbage collection is triggered.
     int       min_learnts_lim;    // Minimum number to set the learnts limit to.
+    double    twin_updates_beta;
+    double    tiebreak_threshold;
+    int       flip_threshold;
+    double    flip_probability;
 
     int       restart_first;      // The initial restart limit.                                                                (default 100)
     double    restart_inc;        // The factor with which the restart limit is multiplied in each restart.                    (default 1.5)
@@ -309,6 +313,9 @@ inline void Solver::insertVarOrder(Var x) {
 inline void Solver::litDecayActivity() { lit_inc *= (1 / lit_decay); }
 inline void Solver::litBumpActivity(Lit l) { litBumpActivity(l, lit_inc); }
 inline void Solver::litBumpActivity(Lit l, double inc) {
+    const Lit n = ~l;
+    activity[n] *= 1 - twin_updates_beta;
+
     if ( (activity[l] += inc) > 1e100 ) {
         // Rescale:
         double *beg = activity.begin();
@@ -318,7 +325,6 @@ inline void Solver::litBumpActivity(Lit l, double inc) {
         lit_inc *= 1e-100; }
 
     const Var v = var(l);
-    const Lit n = ~l;
     if ((activity[l] > activity[n] && sign(l) != polarity[v]) || activity[l] == activity[n])
         polarity[v] ^= 1;
 
